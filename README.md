@@ -26,7 +26,7 @@ Dependency installation:
 pip install -r requirements.txt
 ```
 
-For Windows users, Pre-packaged executables GUI are available  (see release).
+For Windows users, pre-packaged executables GUI are available  (see release).
 
 ---
 ## Usage-Command Line mode
@@ -79,7 +79,7 @@ python mzml_model_trainer.py [parameters]
 |---------|------|-------------|
 | --linear_fit | bool | Enables linear regression of feature RT as a function of sample order. Features with linear coefficient r lower than given threshold will be filtered. Recommended for one batch dataset where shows continuous RT shift along the sequence (default: False) |
 | --linear_r | float | r threshold for linear fit. From 0-1 (default: 0.6) |
-| --max_rt_diff | float | Maximum RT shift expected (compared to medium value) (default: 0.5) |
+| --max_rt_diff | float | Maximum RT shift expected, compared to medium value (default: 0.5) |
 | --min_sample | int | Minimum number of samples in which a feature should be present (default: 10) |
 | --min_sample2 | int | Minimum number of samples in which a feature should be present. For edge RT regions with fewer features (default: 5) |
 | --min_feature_group | int | Minimum features per sample (default: 5) |
@@ -157,3 +157,5 @@ python Gui_command.py
 
 The paramater setting can refer to command line mode
 
+---
+# Citation
