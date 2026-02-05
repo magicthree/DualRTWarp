@@ -56,7 +56,7 @@ def process_single_file(
         model = None
         model_key = None
 
-        #mapping file suffix to model key suffix
+        #mapping file file_suffix to model key file_suffix
         input_suffix = (input_suffix or "").strip()
         model_suffix = (model_suffix or "").strip()
         mapped_key = None
@@ -67,7 +67,7 @@ def process_single_file(
         if mapped_key:
             possible_keys.append(mapped_key)
 
-        # default suffix
+        # default file_suffix
         possible_keys += [
             file_name,
             base_name,
@@ -171,7 +171,6 @@ def correct_feature_lists(
         model_dict: dict,
         output_dir: str,
         rt_columns: List[str] = None,
-        file_extensions: List[str] = None,
         overwrite_original: bool = True,
         n_workers: int = None,
         rt_unit: str = "min",
@@ -180,8 +179,7 @@ def correct_feature_lists(
         model_suffix: str = ""
 ):
     # default settings
-    if file_extensions is None:
-        file_extensions = ['.txt', '.csv', '.tsv']
+    file_extensions = ['.txt', '.csv', '.tsv']
     if rt_columns is None:
         rt_columns = ['RT (min)', 'rt', 'RT', 'retention_time']
     if n_workers is None:
@@ -247,9 +245,8 @@ def main():
     parser.add_argument("--model_path", required=True, help="Path to model pickle (.pkl)")
     parser.add_argument("--output_dir", required=True, help="Directory to save corrected featurelists")
     parser.add_argument("--rt_columns", default="rt", help="Comma-separated RT column names, e.g. 'rt,RT (min),retention_time'")
-    parser.add_argument("--ext", default=".txt,.csv", help="Comma-separated file extensions, e.g. '.txt,.csv'")
-    parser.add_argument("--overwrite_original", default="true", help="true/false: overwrite RT columns or create *_corrected columns")
-    parser.add_argument("--n_workers", type=int, default=None, help="Number of worker processes (default: cpu_count-1)")
+    parser.add_argument("--overwrite_original", default="true", help="Overwrite original RT values when True; keep originals when False")
+    parser.add_argument("--n_workers", type=int, default=None, help="Number of CPU processors (default: cpu_count-1)")
     parser.add_argument("--rt_unit", default="min", help="RT unit in input files: m/min/minute or s/sec/second (model expects minutes)")
     parser.add_argument("--round_digits", type=int, default=4, help="Round corrected RT to N digits (default: 4)")
     parser.add_argument("--input_suffix", default="", help="Suffix in featurelist filenames to replace, e.g. abc.csv")
@@ -271,14 +268,12 @@ def main():
     overwrite = str(args.overwrite_original).strip().lower() in {"1", "true", "yes", "y", "t"}
 
     rt_cols = parse_list_arg(args.rt_columns)
-    exts = parse_list_arg(args.ext)
 
     correct_feature_lists(
         featurelist_dir=args.featurelist_dir,
         model_dict=models,
         output_dir=args.output_dir,
         rt_columns=rt_cols,
-        file_extensions=exts,
         overwrite_original=overwrite,
         n_workers=args.n_workers,
         rt_unit=args.rt_unit,

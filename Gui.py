@@ -6,6 +6,9 @@ from tkinter import ttk, filedialog, messagebox, simpledialog
 import subprocess
 import json
 
+def python_exe():
+    return sys.executable
+
 def is_frozen() -> bool:
     return getattr(sys, "frozen", False)
 
@@ -114,10 +117,10 @@ def config_sets():
             "dbscan_mz": 0.02,
             "dbscan_mz_ppm": 15,
             "rt_max": 45,
-            "min_col": 10,
-            "min_col2": 5,
-            "min_feature_pair": 5,
-            "n_bins": 500,
+            "min_sample": 10,
+            "min_sample2": 5,
+            "min_feature_group": 5,
+            "rt_bins": 500,
             "it": 3,
             "loess_frac": 0.1,
             "max_rt_diff": 0.5,
@@ -134,10 +137,10 @@ def config_sets():
             "dbscan_mz": 0.02,
             "dbscan_mz_ppm": 15,
             "rt_max": 45,
-            "min_col": 10,
-            "min_col2": 5,
-            "min_feature_pair": 5,
-            "n_bins": 500,
+            "min_sample": 10,
+            "min_sample2": 5,
+            "min_feature_group": 5,
+            "rt_bins": 500,
             "it": 3,
             "loess_frac": 0.1,
             "max_rt_diff": 1.2,
@@ -479,25 +482,26 @@ class RTCorrectionApp(BaseRunnerTab):
         self._row += 1
 
         self.add_group_title("Basic setting")
+
+        self.input_dir = self.add_dir_field("input_dir:")
+        self.output_dir = self.add_dir_field("output_dir:")
+
         self.datatype = self.add_choice_field(
             "datatype:",
-            values=["msdial", "mzmine", "tsv", "csv"],
-            default="msdial",
+            values=["tsv", "csv","msdial"],
+            default="tsv",
             on_change=self.on_datatype_change,
         )
 
         self.calculate_summary_data = self.add_bool_radiobuttons("calculate_summary_data:", default="false")
         self.add_hint(
-            "If True, feature list collection is re-run even if previous results exist; if False, existing results are used.")
+            "If True, always re-run the feature list summarization; if False, existing results are used.")
 
         self.min_peak = self.add_text_field("min_peak:", default="5000")
-        self.add_hint("Minimum intensity of features to be involved.")
+        self.add_hint("Minimum features intensity/area to be involved")
 
         self.rt_max = self.add_text_field("rt_max (min):", default="45")
-        self.add_hint("Maximum retention time of the samples.")
-
-        self.input_dir = self.add_dir_field("input_dir:")
-        self.output_dir = self.add_dir_field("output_dir:")
+        self.add_hint("Maximum retention time of the dataset")
         self._row += 1
 
         self.tsv_frame = ttk.Frame(self.form)
@@ -508,10 +512,10 @@ class RTCorrectionApp(BaseRunnerTab):
         self.add_group_title("DBSCAN")
 
         self.dbscan_rt = self.add_text_field("dbscan_rt (min):", default="0.4")
-        self.add_hint("DBSCAN RT threshold for 1st round correction")
+        self.add_hint("DBSCAN RT tolerance for 1st round correction")
 
         self.dbscan_rt2 = self.add_text_field("dbscan_rt_2 (min):", default="0.2")
-        self.add_hint("DBSCAN RT threshold for 2nd round correction")
+        self.add_hint("DBSCAN RT tolerance for 2nd round correction")
 
         self.dbscan_mz = self.add_text_field("dbscan_mz:", default="0.02")
         self.add_hint("DBSCAN absolute m/z threshold")
@@ -521,36 +525,37 @@ class RTCorrectionApp(BaseRunnerTab):
 
         self.add_group_title("Feature filter")
         self.linearfit = self.add_bool_radiobuttons("linear_fit:", default="false")
-        self.add_hint("This function enables linear modeling of RT values as a function of sample order and filters features accordingly,"
-                      "recommended for one batch RT shifts in which RTs continuously shift forward or backward across samples")
+        self.add_hint("Enables linear regression of feature RT as a function of sample order"
+                      "Features with linear coefficient r lower than given threshold will be filtered"
+                      "Recommended for one batch dataset where shows continuous RT shift along the sequence")
 
         self.linear_r = self.add_text_field("linear_r:", default="0.6")
-        self.add_hint("r threshold for linear fit")
+        self.add_hint("r threshold for linear fit. From 0-1")
 
         self.max_rt_diff = self.add_text_field("max_rt_diff:", default="0.5")
-        self.add_hint("Maximum RT shifts observed (compared to medium value)")
+        self.add_hint("Maximum RT shifts expected (compared to medium value)")
 
-        self.min_col = self.add_text_field("min_sample:", default="10")
-        self.add_hint("Minimum number of samples in which a feature should be present.")
+        self.min_sample = self.add_text_field("min_sample:", default="10")
+        self.add_hint("Minimum number of samples in which a feature should be present")
 
-        self.min_col2 = self.add_text_field("min_sample_2:", default="5")
-        self.add_hint("Minimum number of samples in which a feature should be present. This parameter is intended for edge RT regions with fewer features.")
+        self.min_sample2 = self.add_text_field("min_sample_2:", default="5")
+        self.add_hint("Minimum number of samples in which a feature should be present. (For edge RT regions with fewer features).")
 
-        self.min_feature_pair = self.add_text_field("min_feature_group:", default="5")
-        self.add_hint("Minimum number of features required a sample")
+        self.min_feature_group = self.add_text_field("min_feature_group:", default="5")
+        self.add_hint("Minimum number of features required for a sample")
 
-        self.n_bins = self.add_text_field("n_bins:", default="500")
-        self.add_hint("Number of bins used for grouping final features.")
+        self.rt_bins = self.add_text_field("rt_bins:", default="500")
+        self.add_hint("Number of rt bins used for grouping features.")
 
         self.add_group_title("Loess fit")
-        self.it = self.add_text_field("iteration:", default="3")
+        self.it = self.add_text_field("it:", default="3")
         self.add_hint("Number of iterations used for the LOESS fitting.")
 
         self.loess_frac = self.add_text_field("loess_frac:", default="0.1")
         self.add_hint("Fraction of data points used for local LOESS fitting (0-1). Higher values produce smoother curve.")
 
         self.add_group_title("Interpolate")
-        self.interpolate_p = self.add_text_field("interpolate_p:", default="0.6")
+        self.interpolate_f = self.add_text_field("interpolate_f:", default="0.6")
         self.add_hint("Controls interpolation strictness: higher values are more strict.")
 
         ttk.Button(self.runbar, text="Save preset", command=self.save_current_preset).grid(row=0, column=0, sticky="w")
@@ -566,7 +571,7 @@ class RTCorrectionApp(BaseRunnerTab):
         frame.columnconfigure(1, weight=1)
         frame.columnconfigure(2, weight=0)
 
-        ttk.Label(frame, text="TSV/CSV Columns", font=("Arial", 9, "bold")).grid(
+        ttk.Label(frame, text="Feature list loading", font=("Arial", 9, "bold")).grid(
             row=0, column=0, columnspan=3, sticky="w", padx=5, pady=(10, 2)
         )
 
@@ -594,9 +599,9 @@ class RTCorrectionApp(BaseRunnerTab):
         ttk.Entry(frame, textvariable=self.intensity_col).grid(row=r, column=1, sticky="w", padx=5, pady=5)
         r += 1
 
-        self.file_ext = tk.StringVar(value=".csv")
-        ttk.Label(frame, text="file_ext:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
-        ent = ttk.Entry(frame, textvariable=self.file_ext)
+        self.file_suffix = tk.StringVar(value=".csv")
+        ttk.Label(frame, text="file_suffix:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
+        ent = ttk.Entry(frame, textvariable=self.file_suffix)
         ent.grid(row=r, column=1, sticky="w", padx=5, pady=5)
         Tooltip(ent, "File extension of the feature list")
         r += 1
@@ -629,15 +634,15 @@ class RTCorrectionApp(BaseRunnerTab):
             "dbscan_mz": smart_number(self.dbscan_mz.get()),
             "dbscan_mz_ppm": smart_number(self.dbscan_mz_ppm.get()),
 
-            "min_col": smart_number(self.min_col.get()),
-            "min_col2": smart_number(self.min_col2.get()),
-            "min_feature_pair": smart_number(self.min_feature_pair.get()),
-            "n_bins": smart_number(self.n_bins.get()),
+            "min_sample": smart_number(self.min_sample.get()),
+            "min_sample2": smart_number(self.min_sample2.get()),
+            "min_feature_group": smart_number(self.min_feature_group.get()),
+            "rt_bins": smart_number(self.rt_bins.get()),
             "max_rt_diff": smart_number(self.max_rt_diff.get()),
 
             "it": smart_number(self.it.get()),
             "loess_frac": smart_number(self.loess_frac.get()),
-            "interpolate_p": smart_number(self.interpolate_p.get()),
+            "interpolate_f": smart_number(self.interpolate_f.get()),
 
             "input_dir": self.input_dir.get().strip(),
             "output_dir": self.output_dir.get().strip(),
@@ -646,7 +651,7 @@ class RTCorrectionApp(BaseRunnerTab):
             "rt_col": int(self.rt_col.get()),
             "mz_col": int(self.mz_col.get()),
             "intensity_col": int(self.intensity_col.get()),
-            "file_ext": self.file_ext.get().strip(),
+            "file_suffix": self.file_suffix.get().strip(),
             "time_format": self.time_format.get(),
         }
         return cfg
@@ -699,14 +704,14 @@ class RTCorrectionApp(BaseRunnerTab):
             ("dbscan_rt2", self.dbscan_rt2),
             ("dbscan_mz", self.dbscan_mz),
             ("dbscan_mz_ppm", self.dbscan_mz_ppm),
-            ("min_col", self.min_col),
-            ("min_col2", self.min_col2),
-            ("min_feature_pair", self.min_feature_pair),
-            ("n_bins", self.n_bins),
+            ("min_sample", self.min_sample),
+            ("min_sample2", self.min_sample2),
+            ("min_feature_group", self.min_feature_group),
+            ("rt_bins", self.rt_bins),
             ("max_rt_diff", self.max_rt_diff),
             ("it", self.it),
             ("loess_frac", self.loess_frac),
-            ("interpolate_p", self.interpolate_p),
+            ("interpolate_f", self.interpolate_f),
         ]:
             if key in cfg:
                 var.set(str(cfg[key]))
@@ -723,23 +728,38 @@ class RTCorrectionApp(BaseRunnerTab):
             self.mz_col.set(int(cfg["mz_col"]))
         if "intensity_col" in cfg:
             self.intensity_col.set(int(cfg["intensity_col"]))
-        if "file_ext" in cfg:
-            self.file_ext.set(str(cfg["file_ext"]))
+        if "file_suffix" in cfg:
+            self.file_suffix.set(str(cfg["file_suffix"]))
         if "time_format" in cfg:
             self.time_format.set(str(cfg["time_format"]))
 
         self.on_datatype_change(self.datatype.get())
 
     def run(self):
-        exe = exe_path("mzml_model_trainer.exe")
-        if not file_exists_or_warn(exe, "Trainer executable missing"):
+        exe_py = exe_path("mzml_model_trainer.py")
+        exe_exe = exe_path("mzml_model_trainer.exe")
+
+        use_python = False
+
+        if os.path.exists(exe_py):
+            exe = exe_py
+            use_python = True
+        elif file_exists_or_warn(exe_exe, "Trainer executable missing"):
+            exe = exe_exe
+            use_python = False
+        else:
             return
 
         if not self.input_dir.get().strip() or not self.output_dir.get().strip():
             messagebox.showerror("Error", "Please fill input_dir / output_dir.")
             return
 
-        cmd = [
+        cmd = []
+
+        if use_python:
+            cmd.append(python_exe())
+
+        cmd.extend([
             exe,
             f"--datatype={self.datatype.get()}",
             f"--calculate_summary_data={self.calculate_summary_data.get()}",
@@ -753,15 +773,15 @@ class RTCorrectionApp(BaseRunnerTab):
             f"--dbscan_rt2={self.dbscan_rt2.get().strip()}",
             f"--dbscan_mz={self.dbscan_mz.get().strip()}",
             f"--dbscan_mz_ppm={self.dbscan_mz_ppm.get().strip()}",
-            f"--min_col={self.min_col.get().strip()}",
-            f"--min_col2={self.min_col2.get().strip()}",
-            f"--min_feature_pair={self.min_feature_pair.get().strip()}",
-            f"--n_bins={self.n_bins.get().strip()}",
+            f"--min_sample={self.min_sample.get().strip()}",
+            f"--min_sample2={self.min_sample2.get().strip()}",
+            f"--min_feature_group={self.min_feature_group.get().strip()}",
+            f"--rt_bins={self.rt_bins.get().strip()}",
             f"--max_rt_diff={self.max_rt_diff.get().strip()}",
             f"--it={self.it.get().strip()}",
             f"--loess_frac={self.loess_frac.get().strip()}",
-            f"--interpolate_p={self.interpolate_p.get().strip()}",
-        ]
+            f"--interpolate_f={self.interpolate_f.get().strip()}",
+        ])
 
         if self.datatype.get() in ("tsv", "csv"):
             cmd += [
@@ -770,10 +790,11 @@ class RTCorrectionApp(BaseRunnerTab):
                 f"--mz_col={int(self.mz_col.get())}",
                 f"--intensity_col={int(self.intensity_col.get())}",
                 f"--time_format={self.time_format.get()}",
-                f"--file_ext={self.file_ext.get()}"
+                f"--file_suffix={self.file_suffix.get()}"
             ]
 
         self.run_command(cmd, ok_msg="Trainer finished.")
+
 
 class MzmlCorrectionApp(BaseRunnerTab):
     def __init__(self, master):
@@ -783,7 +804,7 @@ class MzmlCorrectionApp(BaseRunnerTab):
         self.out_dir = self.add_dir_field("out_dir:", default="E:/Halo_lipidomic_zhang/corrected")
         self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
 
-        self.suffix = self.add_text_field("model suffix:", default="")
+        self.file_suffix = self.add_text_field("file_suffix:", default="")
         self.add_hint('Suffix used to link model training files to raw data, e.g., "abc.csv" → "abc.mzML".')
 
         self.n_workers = self.add_int_field("n_workers:", default=16)
@@ -792,8 +813,18 @@ class MzmlCorrectionApp(BaseRunnerTab):
         self.add_run_button("Run", self.run)
 
     def run(self):
-        exe = exe_path("mzml_correction.exe")
-        if not file_exists_or_warn(exe, "mzml_correction executable missing"):
+        exe_py = exe_path("mzml_correction.py")
+        exe_exe = exe_path("mzml_correction.exe")
+
+        use_python = False
+
+        if os.path.exists(exe_py):
+            exe = exe_py
+            use_python = True
+        elif file_exists_or_warn(exe_exe, "mzml_correction executable missing"):
+            exe = exe_exe
+            use_python = False
+        else:
             return
 
         mzml_dir = self.mzml_dir.get().strip()
@@ -803,15 +834,22 @@ class MzmlCorrectionApp(BaseRunnerTab):
             messagebox.showerror("Error", "Please fill mzml_dir / out_dir / model_path.")
             return
 
-        cmd = [
+        cmd = []
+
+        if use_python:
+            cmd.append(python_exe())
+
+        cmd.extend([
             exe,
             f"--mzml_dir={mzml_dir}",
             f"--out_dir={out_dir}",
             f"--model_path={model_path}",
-            f"--processes={int(self.n_workers.get())}",
-            f"--suffix={self.suffix.get().strip()}",
-        ]
+            f"--n_workers={int(self.n_workers.get())}",
+            f"--file_suffix={self.file_suffix.get().strip()}",
+        ])
+
         self.run_command(cmd, ok_msg="mzML correction finished.")
+
 
 class ApplyModelFeaturelistApp(BaseRunnerTab):
     def __init__(self, master):
@@ -833,7 +871,7 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
         self.rt_unit = self.add_choice_field("rt_unit:", values=["min", "sec"], default="min")
 
         self.overwrite = self.add_bool_radiobuttons("overwrite_original:", default="true")
-        self.add_hint("Overwrite original RT values when True; keep originals when False.")
+        self.add_hint("Overwrite original RT values when True; keep originals when False")
 
         self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
         self.add_hint("CPU numbers")
@@ -843,8 +881,18 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
         self.add_run_button("Run", self.run)
 
     def run(self):
-        exe = exe_path("apply_model_featurelist.exe")
-        if not file_exists_or_warn(exe, "apply_model_featurelist executable missing"):
+        exe_py = exe_path("apply_model_featurelist.py")
+        exe_exe = exe_path("apply_model_featurelist.exe")
+
+        use_python = False
+
+        if os.path.exists(exe_py):
+            exe = exe_py
+            use_python = True
+        elif file_exists_or_warn(exe_exe, "apply_model_featurelist executable missing"):
+            exe = exe_exe
+            use_python = False
+        else:
             return
 
         featurelist_dir = self.featurelist_dir.get().strip()
@@ -854,7 +902,12 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
             messagebox.showerror("Error", "Please fill featurelist_dir / model_path / output_dir.")
             return
 
-        cmd = [
+        cmd = []
+
+        if use_python:
+            cmd.append(python_exe())
+
+        cmd.extend([
             exe,
             f"--featurelist_dir={featurelist_dir}",
             f"--model_path={model_path}",
@@ -866,7 +919,8 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
             f"--round_digits={int(self.round_digits.get())}",
             f"--input_suffix={self.input_suffix.get().strip()}",
             f"--model_suffix={self.model_suffix.get().strip()}",
-        ]
+        ])
+
         self.run_command(cmd, ok_msg="Featurelist correction finished.")
 
 def main():

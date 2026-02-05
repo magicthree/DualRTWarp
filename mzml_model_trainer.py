@@ -61,10 +61,10 @@ def configsets():
         "dbscan_mz": 0.02,
         "dbscan_mz_ppm": 15,
         "rt_max": 45,
-        "min_col": 10,
-        "min_col2": 5,
-        "min_feature_pair": 5,
-        "n_bins": 500,
+        "min_sample": 10,
+        "min_sample2": 5,
+        "min_feature_group": 5,
+        "rt_bins": 500,
         "it": 3,
         "loess_frac": 0.1,
         "max_rt_diff": 0.5,
@@ -81,10 +81,10 @@ def configsets():
         "dbscan_mz": 0.02,
         "dbscan_mz_ppm": 15,
         "rt_max": 45,
-        "min_col": 10,
-        "min_col2": 5,
-        "min_feature_pair": 5,
-        "n_bins": 500,
+        "min_sample": 10,
+        "min_sample2": 5,
+        "min_feature_group": 5,
+        "rt_bins": 500,
         "it": 3,
         "loess_frac": 0.1,
         "max_rt_diff": 1.2,
@@ -98,63 +98,72 @@ PRESET_CONFIGS.update(load_user_presets())
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='RT Correction Pipeline')
-
+    # Base parameters
     parser.add_argument('--config', type=str, default='default',
                         help='Preset configuration name')
-    parser.add_argument('--datatype', type=str, choices=['msdial', 'mzmine','csv','tsv'],
-                        help='Choose between "csv","tsv","msdial" and "mzmine"')
+    parser.add_argument('--input_dir', type=str,
+                        help='Path of input feature lists')
+    parser.add_argument('--output_dir', type=str,
+                        help='Path of output files')
+    parser.add_argument('--datatype', type=str, choices=['csv','tsv','msdial'],
+                        help='Choose between "csv","tsv", and "msdial"')
     parser.add_argument('--calculate_summary_data', type=str,
                         help='If True, feature list collection is re-run even if previous results exist; if False, existing results are used.')
-    parser.add_argument('--input_dir', type=str,
-                        help='Input directory path')
-    parser.add_argument('--output_dir', type=str,
-                        help='Output directory path')
+    parser.add_argument('--min_peak', type=int,
+                        help='Minimum features intensity/area to be involved')
+    parser.add_argument('--rt_max', type=float,
+                        help='Maximum retention time of the dataset')
+    # csv/tsv parameters
     parser.add_argument('--id_col', type=int,
-                        help='ID column number of feature lists (for .csv/.tsv mode)')
+                        help='ID column number in feature lists (for .csv/.tsv mode)')
     parser.add_argument('--mz_col', type=int,
-                        help='Mz column number of feature lists (for .csv/.tsv mode)')
+                        help='Mz column number in feature lists (for .csv/.tsv mode)')
     parser.add_argument('--rt_col', type=int,
-                        help='RT column number of feature lists (for .csv/.tsv mode)')
+                        help='RT column number in feature lists (for .csv/.tsv mode)')
     parser.add_argument('--intensity_col', type=int,
-                        help='Intensity column number of feature lists (for .csv/.tsv mode)')
+                        help='Intensity/area column number in feature lists (for .csv/.tsv mode)')
     parser.add_argument('--time_format', type=str,
                         help='min or sec')
-    parser.add_argument('--file_ext', type=str,
+    parser.add_argument('--file_suffix', type=str,
                         help='.csv .txt etc')
-    parser.add_argument('--min_peak', type=int,
-                        help='Minimum intensity of features to be involved')
+
+    # DBSCAN
     parser.add_argument('--dbscan_rt', type=float,
-                        help='DBSCAN RT threshold for 1st round correction (min)')
+                        help='DBSCAN RT tolerance for 1st round correction (min)')
     parser.add_argument('--dbscan_rt2', type=float,
-                        help='DBSCAN RT threshold for 2nd round correction (min)')
+                        help='DBSCAN RT tolerance for 2nd round correction (min)')
     parser.add_argument('--dbscan_mz', type=float,
                         help='DBSCAN absolute m/z threshold')
     parser.add_argument('--dbscan_mz_ppm', type=float,
                         help='DBSCAN m/z ppm threshold')
-    parser.add_argument('--rt_max', type=float,
-                        help='Maximum retention time of the samples')
-    parser.add_argument('--min_col', type=int,
-                        help='Minimum number of samples in which a feature should be present')
-    parser.add_argument('--min_col2', type=int,
-                        help='Minimum number of samples in which a feature should be present. This parameter is intended for edge RT regions with fewer features.')
-    parser.add_argument('--min_feature_pair', type=int,
-                        help='Minimum number of features required a sample')
-    parser.add_argument('--n_bins', type=int,
-                        help='Number of bins used for grouping final features')
+    # Filter
+    parser.add_argument('--linearfit', type=str, default=False,
+                        help="This function enables linear regression of feature RT as a function of sample order"
+                        "Features with linear coefficient r lower than given threshold will be filtered"
+                        "Recommended for one batch dataset where shows continuous RT shift along the sequence")
+    parser.add_argument('--linear_r', type=float,
+                        help='r threshold for linear fit. (0-1)')
     parser.add_argument('--max_rt_diff', type=float,
-                        help='Maximum RT shifts observed (compared to medium value)')
+                        help='Maximum RT shifts expected, compared to medium value')
+
+    parser.add_argument('--min_sample', type=int,
+                        help='Minimum number of samples in which a feature should be present')
+    parser.add_argument('--min_sample2', type=int,
+                        help='Minimum number of samples in which a feature should be present. (For edge RT regions with fewer features)')
+    parser.add_argument('--min_feature_group', type=int,
+                        help='Minimum number of features required a sample')
+    parser.add_argument('--rt_bins', type=int,
+                        help='Number of rt bins used for grouping features')
+
     parser.add_argument('--it', type=int,
                         help='Number of iterations used for the LOESS fitting')
     parser.add_argument('--loess_frac', type=float,
                         help='Fraction of data points used for local LOESS fitting (0-1). Higher values produce smoother curve')
-    parser.add_argument('--interpolate_p', type=float,
+    parser.add_argument('--interpolate_f', type=float,
                         help='Controls interpolation strictness: higher values are more strict')
     parser.add_argument('--create_preset', type=str, metavar='Str',
                         help='Create a new preset with the given name from other arguments and exit')
-    parser.add_argument('--linearfit', type=str, default=False,
-                        help='This function enables linear modeling of RT values as a function of sample order and filters features accordingly,recommended for one batch RT shifts in which RTs continuously shift forward or backward across samples')
-    parser.add_argument('--linear_r', type=float,
-                        help='r threshold for linear fit')
+
 
     return parser.parse_args()
 
@@ -231,14 +240,14 @@ def main():
     dbscan_mz = config["dbscan_mz"]
     dbscan_mz_ppm = config["dbscan_mz_ppm"]
     rt_max = config["rt_max"]
-    min_col = config["min_col"]
-    min_col2 = config["min_col2"]
-    min_feature_pair = config["min_feature_pair"]
-    n_bins = config["n_bins"]
+    min_sample = config["min_sample"]
+    min_sample2 = config["min_sample2"]
+    min_feature_group = config["min_feature_group"]
+    rt_bins = config["rt_bins"]
     max_rt_diff = config["max_rt_diff"]
     it = config["it"]
     loess_frac = config["loess_frac"]
-    interpolate_p = config["interpolate_p"]
+    interpolate_f = config["interpolate_f"]
     input_dir = config["input_dir"]
     output_dir = config["output_dir"]
     if datatype == 'csv' or datatype == 'tsv':
@@ -247,7 +256,7 @@ def main():
         mz_col = config["mz_col"]
         intensity_col = config["intensity_col"]
         time_format = config["time_format"]
-        file_ext = config["file_ext"]
+        file_suffix = config["file_suffix"]
         print(config["time_format"])
 
     if datatype == "mzmine":
@@ -257,7 +266,7 @@ def main():
         mz_col = 4
         intensity_col = 7
         time_format = "minute"
-        file_ext = ".csv"
+        file_suffix = ".csv"
     elif datatype == "msdial":
         sep = "\t"
         id_col = 0
@@ -265,7 +274,7 @@ def main():
         mz_col = 6
         intensity_col = 7
         time_format = "minute"
-        file_ext = ".txt"
+        file_suffix = ".txt"
     elif datatype == "tsv":
         sep = "\t"
     elif datatype == "csv":
@@ -277,7 +286,7 @@ def main():
     filelist = [
         os.path.join(input_dir, file)
         for file in os.listdir(input_dir)
-        if file.endswith(file_ext)
+        if file.endswith(file_suffix)
     ]
 
     print(f"Detected {len(filelist)} files in {input_dir}")
@@ -323,15 +332,16 @@ def main():
 
     aligned_matrix_filtered_single, new_all_sample_list = filter_aligned_matrix(
         align_df, sp_list, qc_list, bk_list, all_list,
-        min_col=min_col, min_col2=min_col2,min_col_pair=min_feature_pair, rt_range_min=0, rt_range_max=rt_max,
-        n_bins=n_bins, output_dir=output_dir, prefix="1st_run_",max_rt_diff=max_rt_diff,
+        min_sample=min_sample, min_sample2=min_sample2, min_feature_pair=min_feature_group, rt_range_min=0, rt_range_max=rt_max,
+        rt_bins=rt_bins, output_dir=output_dir, prefix="1st_run_",max_rt_diff=max_rt_diff,
         linearfit=linearfit,linear_r=linear_r
     )
 
     align_df_filter_RT = apply_extract_rt(aligned_matrix_filtered_single, new_all_sample_list)
     align_df_filter_RT_re_inter , new_all_sample_list = interpolate_and_heatmap(
         align_df_filter_RT, new_all_sample_list,
-        interpolate_p=interpolate_p, save_path=os.path.join(output_dir, "1st_run_interpolate.png"), linear_fit=linearfit,linear_r=linear_r,min_col_pair=min_feature_pair,extract=False
+        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "1st_run_interpolate.png"), linear_fit=linearfit,linear_r=linear_r,
+        min_feature_pair=min_feature_group,extract=False
     )
 
     models = model_build(
@@ -359,20 +369,20 @@ def main():
 
     cor_align_df_filter_single, new_all_sample_list = filter_aligned_matrix(
         cor_align_df, sp_list, qc_list, bk_list, new_all_sample_list,
-        min_col=min_col, min_col2=min_col2, min_col_pair=min_feature_pair, rt_range_min=0, rt_range_max=rt_max,
-        n_bins=n_bins, output_dir=output_dir, prefix="corr_",
+        min_sample=min_sample, min_sample2=min_sample2, min_feature_pair=min_feature_group, rt_range_min=0, rt_range_max=rt_max,
+        rt_bins=rt_bins, output_dir=output_dir, prefix="corr_",
         if_corrected=True, summary_matrix=summary_data,max_rt_diff=max_rt_diff,
         linearfit=linearfit,linear_r=linear_r
     )
 
     cor_recover_filter, new_all_sample_list = reorder_columns_by_variation(
-        cor_align_df_filter_single, new_all_sample_list, linear_fit=linearfit,linear_r=linear_r,min_col_pair=min_feature_pair
+        cor_align_df_filter_single, new_all_sample_list, linear_fit=linearfit,linear_r=linear_r, min_feature_pair=min_feature_group
     )
     cor_recover_filter = apply_extract_rt(cor_recover_filter, new_all_sample_list)
     cor_recover_filter_inter, new_all_sample_list = interpolate_and_heatmap(
         cor_recover_filter, new_all_sample_list,
-        interpolate_p=interpolate_p, save_path=os.path.join(output_dir, "final_interpolate.png"),
-        linear_fit=linearfit,linear_r=linear_r,min_col_pair=min_feature_pair,extract=False
+        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "final_interpolate.png"),
+        linear_fit=linearfit,linear_r=linear_r, min_feature_pair=min_feature_group,extract=False
     )
 
     # Final model build and save

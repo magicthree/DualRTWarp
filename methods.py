@@ -265,12 +265,12 @@ def filter_aligned_matrix(
     qc_list,
     bk_list,
     all_sp_ls,
-    min_col,
-    min_col2,
-    min_col_pair,
+    min_sample,
+    min_sample2,
+    min_feature_pair,
     rt_range_min,
     rt_range_max,
-    n_bins=None,
+    rt_bins=None,
     rt_col="median_rt",
     output_dir='./',
     prefix='.csv',
@@ -294,7 +294,7 @@ def filter_aligned_matrix(
     align_matrix = align_matrix.sort_values(rt_col).reset_index(drop=True)
 
     # filter low occurrence feature
-    aligned_combined = remove_low_occurrence_features(align_matrix, sp_list, min_col, min_col2, rt_range_max, rt_range_min, rt_col)
+    aligned_combined = remove_low_occurrence_features(align_matrix, sp_list, min_sample, min_sample2, rt_range_max, rt_range_min, rt_col)
 
     # filter features with multiple identity within one sample
     contains_multiple = aligned_combined[all_sp_ls].map(
@@ -306,19 +306,19 @@ def filter_aligned_matrix(
 
     aligned_filters, new_all_sample_list = reorder_columns_by_variation(
         aligned_single, all_sp_ls, linear_fit=linearfit, linear_r=linear_r,
-        min_col_pair=min_col_pair, extract=True
+        min_feature_pair=min_feature_pair, extract=True
     )
 
     aligned_filters = remove_outlier_features(aligned_filters, new_all_sample_list, max_rt_diff)
     print("Filtered rows based on: Top 1% variance threshold, Top 0.5% single outlier:", aligned_filters.shape[0])
 
-    if n_bins is not None and n_bins > 0:
-        aligned_filters = filter_bin(aligned_filters, new_all_sample_list, rt_col, n_bins)
+    if rt_bins is not None and rt_bins > 0:
+        aligned_filters = filter_bin(aligned_filters, new_all_sample_list, rt_col, rt_bins)
         print("Binned row: ", aligned_filters.shape[0])
 
     aligned_filters, new_all_sample_list = reorder_columns_by_variation(
         aligned_filters, new_all_sample_list, linear_fit=linearfit, linear_r=linear_r,
-        min_col_pair=min_col_pair, extract=True
+        min_feature_pair=min_feature_pair, extract=True
     )
 
     apply_extract_rt(aligned_filters, new_all_sample_list).to_csv(
@@ -474,15 +474,15 @@ def update_corrected_matrix(aligned_matrix: pd.DataFrame,
     return result
 
 
-def reorder_columns_by_variation(matrix, all_samples, linear_fit=False, extract=True, min_col_pair=5, linear_r=0.7):
+def reorder_columns_by_variation(matrix, all_samples, linear_fit=False, extract=True, min_feature_pair=5, linear_r=0.7):
     # remove samples with limited feature groups
     non_na_counts = matrix[all_samples].notna().sum()
-    removed_cols = [col for col in all_samples if non_na_counts[col] < min_col_pair]
+    removed_cols = [col for col in all_samples if non_na_counts[col] < min_feature_pair]
     all_samples = [col for col in all_samples if col not in removed_cols]
 
     if len(removed_cols) > 0:
         matrix = matrix.drop(columns=removed_cols)
-        print(f"Removed {len(removed_cols)} samples with < {min_col_pair} candidate features:\n{removed_cols}")
+        print(f"Removed {len(removed_cols)} samples with < {min_feature_pair} candidate features:\n{removed_cols}")
 
     max_clusters = max(1, math.ceil(len(all_samples) / 10))
 
@@ -756,14 +756,14 @@ def extract_center_nearest(matrix: pd.DataFrame, sample_col: list[str], extract:
     return matrix
 
 
-def interpolate_and_heatmap(ori_matrix, all_sample_cols, interpolate_p, save_path='interpolated_heatmap.png', linear_fit=True, linear_r=0.7, min_col_pair=5, extract=False):
+def interpolate_and_heatmap(ori_matrix, all_sample_cols, interpolate_f, save_path='interpolated_heatmap.png', linear_fit=True, linear_r=0.7, min_feature_pair=5, extract=False):
     import seaborn as sns
     from matplotlib.colors import LinearSegmentedColormap
     matrix = ori_matrix.copy()
 
     #data preparation
     matrix,all_sample_cols=reorder_columns_by_variation(matrix, all_sample_cols, linear_fit=linear_fit, extract=extract,
-                                                    min_col_pair=min_col_pair, linear_r=linear_r)
+                                                        min_feature_pair=min_feature_pair, linear_r=linear_r)
 
     matrix_selected = matrix[['median_rt'] + all_sample_cols]
     matrix_selected = matrix_selected.set_index('median_rt').sort_index()
@@ -771,7 +771,7 @@ def interpolate_and_heatmap(ori_matrix, all_sample_cols, interpolate_p, save_pat
     num_matrix = matrix_selected.to_numpy(dtype=float)
 
     #interporlate
-    interpolated_matrix = custom_interpolate(num_matrix, interpolate_p)
+    interpolated_matrix = custom_interpolate(num_matrix, interpolate_f)
     interpolated_df = pd.DataFrame(
         interpolated_matrix,
         index=median_rt_vals,

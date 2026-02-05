@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 np.set_printoptions(precision=4, suppress=True, linewidth=200)
 
-def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> np.ndarray:
+def custom_interpolate(matrix: np.ndarray, f_thred=0.6, eps: float = 1e-12) -> np.ndarray:
     interpolated_matrix = matrix.copy().astype(float)
     m, n = interpolated_matrix.shape
 
@@ -28,9 +28,9 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                 and not np.isnan(v1t) and not np.isnan(v3t)):
                 candi_diff = v31 - v11
                 diff = (v3t - v1t)
-                p_range = candi_diff / diff if diff != 0 else 1
-                p_range_inv = diff / candi_diff if candi_diff != 0 else 1
-                if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                f_range = candi_diff / diff if diff != 0 else 1
+                f_range_inv = diff / candi_diff if candi_diff != 0 else 1
+                if abs(candi_diff) > eps and f_range > f_thred and f_range_inv > f_thred:
                     p = (v21 - v11) / candi_diff
                     candidates.append(v1t + p * diff)
 
@@ -42,9 +42,9 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                 and not np.isnan(v1t) and not np.isnan(v3t)):
                 candi_diff = v33 - v13
                 diff = (v3t - v1t)
-                p_range = candi_diff / diff if diff != 0 else 1
-                p_range_inv = diff / candi_diff if candi_diff != 0 else 1
-                if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                f_range = candi_diff / diff if diff != 0 else 1
+                f_range_inv = diff / candi_diff if candi_diff != 0 else 1
+                if abs(candi_diff) > eps and f_range > f_thred and f_range_inv > f_thred:
                     p = (v23 - v13) / candi_diff
                     candidates.append(v1t + p * (diff))
 
@@ -56,9 +56,9 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                 and not np.isnan(ut1) and not np.isnan(ut3)):
                 candi_diff = u13 - u11
                 diff = (ut3 - ut1)
-                p_range = candi_diff / diff if diff != 0 else 1
-                p_range_inv = diff / candi_diff if candi_diff != 0 else 1
-                if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                f_range = candi_diff / diff if diff != 0 else 1
+                f_range_inv = diff / candi_diff if candi_diff != 0 else 1
+                if abs(candi_diff) > eps and f_range > f_thred and f_range_inv > f_thred:
                     p = (u12 - u11) / candi_diff
                     candidates.append(ut1 + p * (diff))
 
@@ -70,9 +70,9 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                 and not np.isnan(dt1) and not np.isnan(dt3)):
                 candi_diff = d13 - d11
                 diff = (dt3 - dt1)
-                p_range = candi_diff / diff if diff != 0 else 1
-                p_range_inv = diff / candi_diff if candi_diff != 0 else 1
-                if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                f_range = candi_diff / diff if diff != 0 else 1
+                f_range_inv = diff / candi_diff if candi_diff != 0 else 1
+                if abs(candi_diff) > eps and f_range > f_thred and f_range_inv > f_thred:
                     p = (d12 - d11) / candi_diff
                     candidates.append(dt1 + p * (diff))
 
@@ -106,7 +106,7 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                             p_range = candi_diff / diff if diff != 0 else 1
                             p_range_inv = diff / candi_diff if candi_diff != 0 else 1
 
-                            if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                            if abs(candi_diff) > eps and p_range > f_thred and p_range_inv > f_thred:
                                 tmp = []
                                 for col in range(a, b + 1):
                                     p = (ref[col] - ref[L]) / candi_diff
@@ -121,7 +121,7 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                             p_range = candi_diff / diff if diff != 0 else 1
                             p_range_inv = diff / candi_diff if candi_diff != 0 else 1
 
-                            if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                            if abs(candi_diff) > eps and p_range > f_thred and p_range_inv > f_thred:
                                 tmp = []
                                 for col in range(a, b + 1):
                                     p = (ref[col] - ref[L]) / candi_diff
@@ -166,7 +166,7 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                             candi_diff = ref[D] - ref[U]
                             p_range = candi_diff / diff if diff != 0 else 1
                             p_range_inv = diff / candi_diff if candi_diff != 0 else 1
-                            if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                            if abs(candi_diff) > eps and p_range > f_thred and p_range_inv > f_thred:
                                 tmp = []
                                 for row in range(a, b + 1):
                                     p = (ref[row] - ref[U]) / candi_diff
@@ -180,7 +180,7 @@ def custom_interpolate(matrix: np.ndarray, p_thred=0.6, eps: float = 1e-12) -> n
                             candi_diff = ref[D] - ref[U]
                             p_range = candi_diff / diff if diff != 0 else 1
                             p_range_inv = diff / candi_diff if candi_diff != 0 else 1
-                            if abs(candi_diff) > eps and p_range > p_thred and p_range_inv > p_thred:
+                            if abs(candi_diff) > eps and p_range > f_thred and p_range_inv > f_thred:
                                 tmp = []
                                 for row in range(a, b + 1):
                                     p = (ref[row] - ref[U]) / candi_diff

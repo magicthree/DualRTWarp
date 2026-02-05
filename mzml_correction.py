@@ -112,10 +112,10 @@ def main():
                         help="Output directory for corrected files",default=r"E:\Halo_lipidomic_zhang\corrected")
     parser.add_argument("--model_path", #required=True,
                         help="Path to rt_correction_models.pkl",default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
-    parser.add_argument("--processes", type=int, default=16,
-                        help="Number of parallel processes (default: CPU count)")
-    parser.add_argument("--suffix", default="",
-                        help='Model suffix for matching .mzml file. '
+    parser.add_argument("--n_workers", type=int, default=16,
+                        help="Number of CPU processors (default: cpu_count-1)")
+    parser.add_argument("--file_suffix", default="",
+                        help='Model file_suffix for matching .mzml file. '
                              'Example: input ".txt" means abc.txt correspond to abc.mzml. '
                              'If empty, use built-in defaults.')
 
@@ -135,7 +135,7 @@ def main():
         "_correct_modified.txt",
         ".mzML_chromatograms_resolved1_decon.csv"
     ]
-    user_suffixes = parse_suffixes_arg(args.suffix)
+    user_suffixes = parse_suffixes_arg(args.file_suffix)
     suffixes = user_suffixes if user_suffixes else default_suffixes
 
     models = load_models(model_path)
@@ -145,7 +145,7 @@ def main():
         return
 
     pool = mp.Pool(
-        processes=args.processes or mp.cpu_count(),
+        processes=args.n_workers or mp.cpu_count()-1,
         initializer=init_worker,
         initargs=(models,)
     )
