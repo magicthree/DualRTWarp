@@ -60,7 +60,7 @@ export_feature_lists(
 - Correction curves figures
 - RT shift matrix plots
 - Intermediate files
-- Trained model file: rt_correction_models.pkl
+- Trained model file: **rt_correction_models.pkl**
 
 ### Parameters
 **Basic settings**
