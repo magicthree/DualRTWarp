@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56.7 38.7">
+  <defs>
+    <style>
+      .cls-1 {
+        stroke: #4a97a2;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6, .cls-7 {
+        opacity: .9;
+        stroke-miterlimit: 10;
+      }
+
+      .cls-1, .cls-2, .cls-3, .cls-4, .cls-5, .cls-6, .cls-7, .cls-8 {
+        fill: none;
+      }
+
+      .cls-2 {
+        stroke: #c84d4c;
+      }
+
+      .cls-3 {
+        stroke: #ecc259;
+      }
+
+      .cls-4 {
+        stroke: #8d4675;
+      }
+
+      .cls-5 {
+        stroke: #dd7b25;
+      }
+
+      .cls-6 {
+        stroke: #b2d37e;
+      }
+
+      .cls-7 {
+        stroke: #1b7ab2;
+      }
+
+      .cls-8 {
+        stroke: #99b0bc;
+        stroke-dasharray: 2;
+        stroke-linejoin: round;
+      }
+    </style>
+  </defs>
+  <line class="cls-8" x1="13.28" y1="38.02" x2="46.01" y2="17.48"/>
+  <path class="cls-4" d="M0,17.82h41.31S42.55.45,47.12.5s5.42,17.32,5.42,17.32h4.16"/>
+  <path class="cls-2" d="M0,21.53l35.89-.31s1.24-17.37,5.81-17.32,5.42,17.32,5.42,17.32h9.58"/>
+  <path class="cls-5" d="M0,24.62h30.47s1.24-17.37,5.81-17.32,5.42,17.32,5.42,17.32h14.99"/>
+  <path class="cls-3" d="M0,28.01h25.06s1.24-17.37,5.81-17.32,5.42,17.32,5.42,17.32h20.41"/>
+  <path class="cls-6" d="M0,31.41h19.64s1.24-17.37,5.81-17.32c4.54.05,5.42,17.32,5.42,17.32h25.83"/>
+  <path class="cls-1" d="M0,34.81h14.22s1.24-17.37,5.81-17.32c4.54.05,5.42,17.32,5.42,17.32h31.24"/>
+  <path class="cls-7" d="M0,38.2h8.81s1.24-17.37,5.81-17.32c4.54.05,5.42,17.32,5.42,17.32h36.66"/>
+</svg>
