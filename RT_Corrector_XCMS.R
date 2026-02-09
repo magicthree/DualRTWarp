@@ -140,3 +140,47 @@ apply_RT_Corrector_XCMS <- function(xdata,
   
   xdata_corr
 }
+
+export_corr_feature_lists <- function(
+    xdata,
+    outdir = ".",
+    suffix = ".csv"
+) {
+  if (!dir.exists(outdir)) {
+    dir.create(outdir, recursive = TRUE)
+  }
+  
+  cp <- chromPeaks(xdata)
+  cp_df <- as.data.frame(cp)
+  
+  cp_df$rt_min <- cp_df$rt / 60
+  
+  cp_df$sample_name <- basename(fileNames(xdata_corr))[cp_df$sample]
+  
+  cp_df <- cp_df[cp_df$into > 0 & !is.na(cp_df$into), ]
+  
+  cp_df$sample_name <- basename(cp_df$sample_name)
+  cp_df$sample_name <- sub("\\.mzML$", "", cp_df$sample_name)
+  cp_df$sample_name <- as.character(cp_df$sample_name)
+  
+  unique_names <- unique(cp_df$sample_name)
+  print(unique_names)
+  
+  for (sn in unique_names) {
+    idx   <- cp_df$sample_name == sn
+    df_sn <- cp_df[idx, ]
+    
+    message("sample ", sn, " contains ", nrow(df_sn), " features")
+    
+    df_sn <- df_sn[, c("mz", "rt", "rt_min", "sn", "into")]
+    
+    out_csv <- file.path(
+      outdir,
+      paste0(sn, suffix)
+    )
+    
+    write.csv(df_sn, out_csv, row.names = FALSE)
+  }
+  
+  invisible(unique_names)
+}
