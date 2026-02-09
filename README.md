@@ -29,15 +29,35 @@ pip install -r requirements.txt
 For Windows users, pre-packaged executables GUI are available  (see release).
 
 ---
-## Usage-Command Line mode
+## Usage: Command Line mode
 
 ## Module 1: RT Corrector Model Training:
 ```
 python mzml_model_trainer.py [parameters]
 ```
+### Inputs files
+- **.csv/.tsv** formatted feature/peak lists files (See example. To be noticed, individual feature lists for each sample are required, instead of aligned feature lists)
+- For most analytical platforms, feature/peak lists can be directly exported using embedded tools
+- For XCMS >= 4.8 (R) users, **RT_Corrector_XCMS.R**  script is recommended for feature/peak list exportation
+
+example:
+```
+...load XCMS/other packages...
+source("RT_Corrector_XCMS.R")
+
+xdata <- readMSData(...)
+xdata <- findChromPeaks(...)
+
+export_feature_lists(
+  xdata,
+  outdir = "Path for export",
+  suffix = ".csv"
+)
+...downstream analysis...
+```
 
 ### Outputs
-- RT correction curves
+- Correction curves figures
 - RT shift matrix plots
 - Intermediate files
 - Trained model file: rt_correction_models.pkl
@@ -145,14 +165,40 @@ python mzml_correction.py [parameters]
 
 ---
 
-## Usage-GUI mode 
+## Usage: GUI mode 
 Open GUI
 ```
 python Gui_command.py
 ```
 <img src="./Figs/Gui_view.png" style="width: 40%">
 
-The paramater setting can refer to command line mode
+The parameter setting can refer to command line mode
 
 ---
-# Citation
+
+## Usage: RT_Corrector_XCMS.R
+This script is for applying the RT Corrector model in XCMS object (XCMS >= 4.8) in R
+
+Peak picking should be done before usage 
+
+example:
+```
+...load XCMS/other packages...
+source("RT_Corrector_XCMS.R")
+
+xdata <- readMSData(...)
+xdata <- findChromPeaks(...)
+
+xdata_corr <- apply_RT_Corrector_XCMS(
+  xdata = xdata,
+  model_pkl = "path to .pkl model",
+  input_suffix = ".mzML",
+  model_suffix = ".txt",
+)
+...downstream analysis...
+```
+
+# Cite RT Corrector
+
+# References
+Smith, C. A., et al. (2006). "XCMS:  Processing Mass Spectrometry Data for Metabolite Profiling Using Nonlinear Peak Alignment, Matching, and Identification." Analytical Chemistry 78(3): 779–787.
