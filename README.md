@@ -1,6 +1,6 @@
 # RT Corrector
 
-<img src="./logo.jpg" style="width: 40%">
+<img src="./logo.svg" style="width: 40%">
 
 ## Overview
 RT Corrector is a Python tool designed to correct complex retention time (RT) shifts in LC-/GC-MS-based ’omics analyses, enabling consistent and comparable feature RTs for downstream data processing and interpretation.
