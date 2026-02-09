@@ -3,7 +3,7 @@
 <img src="./logo.jpg" style="width: 40%">
 
 ## Overview
-RT Corrector is designed to correct complex retention time (RT) shifts in LC-/GC-MS-based ’omics analyses, enabling consistent and comparable feature RTs for downstream data processing and interpretation.
+RT Corrector is a Python tool designed to correct complex retention time (RT) shifts in LC-/GC-MS-based ’omics analyses, enabling consistent and comparable feature RTs for downstream data processing and interpretation.
 
 RT Corrector contains **three modules**:
 
@@ -18,7 +18,7 @@ RT Corrector contains **three modules**:
 
 Direct RT correction at the raw data level provides high flexibility and allows integration with diverse analytical platforms and downstream software tools.
 
-RT Corrector is distributed with a Windows **.exe** graphical user interface (GUI)
+RT Corrector is distributed with a Windows **.exe** graphical user interface (GUI), the same functionality is also available in command-line mode.
 
 For XCMS users (in R), we additionally provide scripts to export feature lists and to directly apply trained RT correction models to **XCMSnExp** object.
    
@@ -32,7 +32,7 @@ Dependency installation:
 pip install -r requirements.txt
 ```
 
-For Windows users, pre-packaged executables GUI are available  (see release).
+For Windows users, a .exe GUI is available in the release and can be used without installation.
 
 ---
 ## Usage: Command Line mode
