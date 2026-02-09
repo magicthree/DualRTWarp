@@ -1,20 +1,26 @@
 # RT Corrector
 
-<img src="./logo.jpg" style="width: 20%">
+<img src="./logo.jpg" style="width: 40%">
 
 ## Overview
-The RT Corrector is designed to fix complex retention time (RT) shift in LC(GC)-MS based 'omics analysis, enabling comparable feature RTs in downstream analysis.
+RT Corrector is designed to correct complex retention time (RT) shifts in LC-/GC-MS-based ’omics analyses, enabling consistent and comparable feature RTs for downstream data processing and interpretation.
 
 RT Corrector contains **three modules**:
 
 1. **Model training**  
-   Train RT correction models (warping curves) for each sample based on feature lists.
+- Train RT correction models (warping curves) for each sample using feature/peak lists.
 
-2. **Correct feature lists**  
-   Apply trained models to feature lists (.csv / .tsv).
+2. **Correct feature lists**
+- Trained models are applied to feature lists in **.csv** / **.tsv** format.
 
 3. **Correct mzML files**  
-   Apply trained models directly to raw mzML data files.
+- Trained models are directly applied to raw LC-/GC-MS data stored in the standardized **.mzML** format.
+
+Direct RT correction at the raw data level provides high flexibility and allows integration with diverse analytical platforms and downstream software tools.
+
+RT Corrector is distributed with a Windows **.exe** graphical user interface (GUI)
+
+For XCMS users (in R), we additionally provide scripts to export feature lists and to directly apply trained RT correction models to **XCMSnExp** object.
    
 ---
 
