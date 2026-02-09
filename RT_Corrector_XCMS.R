@@ -141,7 +141,7 @@ apply_RT_Corrector_XCMS <- function(xdata,
   xdata_corr
 }
 
-export_corr_feature_lists <- function(
+export_feature_lists <- function(
     xdata,
     outdir = ".",
     suffix = ".csv"
