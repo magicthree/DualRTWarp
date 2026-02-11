@@ -1,4 +1,5 @@
 import os
+import shlex
 import sys
 import threading
 import tkinter as tk
@@ -26,7 +27,6 @@ def file_exists_or_warn(path: str, title="Missing file"):
 
 def user_preset_path() -> str:
     base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    d = os.path.join(base, "RTCorrector")
     d = os.path.dirname(sys.executable)
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "user_presets.json")
@@ -58,6 +58,10 @@ def smart_number(s: str):
     except Exception:
         return s
 
+def LABEL_COL():
+    return 140
+def BTN_COL():
+    return 100
 class Tooltip:
     def __init__(self, widget, text: str, delay: int = 500):
         self.widget = widget
@@ -108,7 +112,7 @@ def config_sets():
     return {
         "default": {
             "datatype": "msdial",
-            "calculate_summary_data": False,
+            "redo": False,
             "linearfit": False,
             "linear_r": 0.6,
             "min_peak": 5000,
@@ -124,11 +128,11 @@ def config_sets():
             "it": 3,
             "loess_frac": 0.1,
             "max_rt_diff": 0.5,
-            "interpolate_p": 0.6,
+            "interpolate_f": 0.6,
         },
         "Halo96": {
             "datatype": "msdial",
-            "calculate_summary_data": False,
+            "redo": False,
             "linearfit": True,
             "linear_r": 0.6,
             "min_peak": 5000,
@@ -144,7 +148,7 @@ def config_sets():
             "it": 3,
             "loess_frac": 0.1,
             "max_rt_diff": 1.2,
-            "interpolate_p": 0.6,
+            "interpolate_f": 0.6,
             "input_dir": r"E:\Halo_lipidomic_zhang\featurelist",
             "output_dir": r"E:\Halo_lipidomic_zhang\GUItest",
         }
@@ -204,8 +208,9 @@ class BaseRunnerTab:
             self.form = ttk.Frame(self.form_container)
             self.form.pack(fill="both", expand=True)
 
-        for col, w in enumerate((0, 1, 0)):
-            self.form.columnconfigure(col, weight=w)
+        self.form.columnconfigure(0, weight=0, minsize=LABEL_COL())
+        self.form.columnconfigure(1, weight=1)
+        self.form.columnconfigure(2, weight=0, minsize=BTN_COL())
 
         self._row = 0
         self._build_header(title)
@@ -225,12 +230,15 @@ class BaseRunnerTab:
 
     def _build_header(self, text: str):
         lbl = ttk.Label(self.form, text=text, font=("Arial", 10, "bold"))
-        lbl.grid(row=self._row, column=0, columnspan=3, sticky="w", padx=5, pady=(5, 8))
+        lbl.grid(row=self._row, column=0, columnspan=3, sticky="we", padx=5, pady=(5, 8))
         self._row += 1
+
+    def get_toplevel(self):
+        return self.master.winfo_toplevel()
 
     def add_dir_field(self, label: str, default=""):
         var = tk.StringVar(value=default)
-        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(self.form, textvariable=var)
         ent.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         ttk.Button(self.form, text="...", command=lambda: self._pick_dir(var)).grid(row=self._row, column=2, padx=5)
@@ -240,7 +248,7 @@ class BaseRunnerTab:
 
     def add_file_field(self, label: str, filetypes, default=""):
         var = tk.StringVar(value=default)
-        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(self.form, textvariable=var)
         ent.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         ttk.Button(self.form, text="...", command=lambda: self._pick_file(var, filetypes)).grid(row=self._row, column=2, padx=5)
@@ -250,7 +258,7 @@ class BaseRunnerTab:
 
     def add_text_field(self, label: str, default=""):
         var = tk.StringVar(value=str(default))
-        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(self.form, textvariable=var)
         ent.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         self._last_input_widget = ent
@@ -259,31 +267,36 @@ class BaseRunnerTab:
 
     def add_int_field(self, label: str, default=0):
         var = tk.IntVar(value=int(default))
-        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(self.form, textvariable=var)
-        ent.grid(row=self._row, column=1, sticky="w", padx=5, pady=5)
+        ent.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         self._last_input_widget = ent
         self._row += 1
         return var
 
     def add_choice_field(self, label: str, values, default=None, on_change=None):
         var = tk.StringVar(value=(default if default is not None else values[0]))
-        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         cb = ttk.Combobox(self.form, textvariable=var, values=list(values), state="readonly")
-        cb.grid(row=self._row, column=1, sticky="w", padx=5, pady=5)
+        cb.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         if on_change is not None:
             cb.bind("<<ComboboxSelected>>", lambda e: on_change(var.get()))
         self._last_input_widget = cb
         self._row += 1
         return var
 
-    def add_bool_radiobuttons(self, label: str, default="true"):
+    def add_bool_radiobuttons(self, label: str, default="true", on_change=None):
         var = tk.StringVar(value=default)
-        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         frm = ttk.Frame(self.form)
-        frm.grid(row=self._row, column=1, sticky="w", padx=5, pady=5)
-        ttk.Radiobutton(frm, text="true", variable=var, value="true").pack(side="left")
-        ttk.Radiobutton(frm, text="false", variable=var, value="false").pack(side="left")
+        frm.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
+
+        def _fire():
+            if on_change:
+                on_change(var.get())
+
+        ttk.Radiobutton(frm, text="true", variable=var, value="true", command=_fire).pack(side="left")
+        ttk.Radiobutton(frm, text="false", variable=var, value="false", command=_fire).pack(side="left")
         self._last_input_widget = frm
         self._row += 1
         return var
@@ -295,13 +308,13 @@ class BaseRunnerTab:
 
     def add_group_title(self, text: str):
         ttk.Label(self.form, text=text, font=("Arial", 9, "bold")).grid(
-            row=self._row, column=0, columnspan=3, sticky="w", padx=5, pady=(10, 2)
+            row=self._row, column=0, columnspan=3, sticky="we", padx=5, pady=(10, 2)
         )
         self._row += 1
 
     def add_text_field_in(self, frame, label: str, default=""):
         var = tk.StringVar(value=str(default))
-        ttk.Label(frame, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(frame, textvariable=var)
         ent.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         self._last_input_widget = ent
@@ -310,18 +323,18 @@ class BaseRunnerTab:
 
     def add_int_field_in(self, frame, label: str, default=0):
         var = tk.IntVar(value=int(default))
-        ttk.Label(frame, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(frame, textvariable=var)
-        ent.grid(row=self._row, column=1, sticky="w", padx=5, pady=5)
+        ent.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         self._last_input_widget = ent
         self._row += 1
         return var
 
     def add_choice_field_in(self, frame, label: str, values, default=None, on_change=None):
         var = tk.StringVar(value=(default if default is not None else values[0]))
-        ttk.Label(frame, text=label).grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text=label).grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         cb = ttk.Combobox(frame, textvariable=var, values=list(values), state="readonly")
-        cb.grid(row=self._row, column=1, sticky="w", padx=5, pady=5)
+        cb.grid(row=self._row, column=1, sticky="we", padx=5, pady=5)
         if on_change is not None:
             cb.bind("<<ComboboxSelected>>", lambda e: on_change(var.get()))
         self._last_input_widget = cb
@@ -367,7 +380,8 @@ class BaseRunnerTab:
             var.set(p)
 
     def run_command(self, cmd, ok_msg="Done"):
-        self.set_log("Command:\n" + " ".join(cmd) + "\n\nRunning...\n")
+        cmd_str = " ".join(shlex.quote(str(x)) for x in cmd)
+        self.set_log("Command Running...\n" + cmd_str + "\n")
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
         env["PYTHONIOENCODING"] = "utf-8"
@@ -415,10 +429,10 @@ class BaseRunnerTab:
 
                 if code == 0:
                     self.master.after(0, lambda: append("\nDone.\n"))
-                    self.master.after(0, lambda: messagebox.showinfo("Success", ok_msg))
+                    self.master.after(0, lambda: messagebox.showinfo("Success", ok_msg,parent=self.get_toplevel()))
                 else:
                     self.master.after(0, lambda: append(f"\n[ERROR] Process exited with code {code}\n"))
-                    self.master.after(0, lambda: messagebox.showerror("Error", f"Process failed (exit code {code}), see log."))
+                    self.master.after(0, lambda: messagebox.showerror("Error", f"Process failed (exit code {code}), see log.",parent=self.get_toplevel()))
 
             except UnicodeDecodeError:
                 try:
@@ -455,17 +469,17 @@ class BaseRunnerTab:
                     code = p.wait()
                     if code == 0:
                         self.master.after(0, lambda: append("\nDone.\n"))
-                        self.master.after(0, lambda: messagebox.showinfo("Success", ok_msg))
+                        self.master.after(0, lambda: messagebox.showinfo("Success", ok_msg,parent=self.get_toplevel()))
                     else:
                         self.master.after(0, lambda: append(f"\n[ERROR] Process exited with code {code}\n"))
-                        self.master.after(0, lambda: messagebox.showerror("Error", f"Process failed (exit code {code}), see log."))
+                        self.master.after(0, lambda: messagebox.showerror("Error", f"Process failed (exit code {code}), see log.",parent=self.get_toplevel()))
                 except Exception as e2:
                     self.master.after(0, lambda: append(f"\n[Exception]\n{repr(e2)}\n"))
-                    self.master.after(0, lambda: messagebox.showerror("Error", repr(e2)))
+                    self.master.after(0, lambda: messagebox.showerror("Error", repr(e2),parent=self.get_toplevel()))
 
             except Exception as e:
                 self.master.after(0, lambda: append(f"\n[Exception]\n{repr(e)}\n"))
-                self.master.after(0, lambda: messagebox.showerror("Error", repr(e)))
+                self.master.after(0, lambda: messagebox.showerror("Error", repr(e),parent=self.get_toplevel()))
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -473,7 +487,7 @@ class RTCorrectionApp(BaseRunnerTab):
     def __init__(self, master):
         super().__init__(master, "RT Corrector model training", scrollable_form=True)
 
-        ttk.Label(self.form, text="Preset config:").grid(row=self._row, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.form, text="Preset config:").grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         presets = list(PRESET_CONFIGS.keys())
         self.preset_var = tk.StringVar(value=presets[0] if presets else "")
         self.preset_cb = ttk.Combobox(self.form, textvariable=self.preset_var, values=presets, state="readonly")
@@ -481,7 +495,7 @@ class RTCorrectionApp(BaseRunnerTab):
         self.preset_cb.bind("<<ComboboxSelected>>", lambda e: self.load_preset())
         self._row += 1
 
-        self.add_group_title("Basic setting")
+        self.add_group_title("Basic settings")
 
         self.input_dir = self.add_dir_field("input_dir:")
         self.output_dir = self.add_dir_field("output_dir:")
@@ -493,7 +507,7 @@ class RTCorrectionApp(BaseRunnerTab):
             on_change=self.on_datatype_change,
         )
 
-        self.calculate_summary_data = self.add_bool_radiobuttons("calculate_summary_data:", default="false")
+        self.redo = self.add_bool_radiobuttons("redo:", default="false")
         self.add_hint(
             "If True, always re-run the feature list summarization; if False, existing results are used.")
 
@@ -558,7 +572,7 @@ class RTCorrectionApp(BaseRunnerTab):
         self.interpolate_f = self.add_text_field("interpolate_f:", default="0.6")
         self.add_hint("Controls interpolation strictness: higher values are more strict.")
 
-        ttk.Button(self.runbar, text="Save preset", command=self.save_current_preset).grid(row=0, column=0, sticky="w")
+        ttk.Button(self.runbar, text="Save preset", command=self.save_current_preset).grid(row=0, column=0, sticky="we")
         ttk.Button(self.runbar, text="Run", command=self.run).grid(row=0, column=1, sticky="e")
         self.runbar.columnconfigure(0, weight=0)
         self.runbar.columnconfigure(1, weight=1)
@@ -567,49 +581,49 @@ class RTCorrectionApp(BaseRunnerTab):
         self.on_datatype_change(self.datatype.get())
 
     def _build_tsv_group(self, frame: ttk.Frame):
-        frame.columnconfigure(0, weight=0)
+        frame.columnconfigure(0, weight=0, minsize=LABEL_COL())
         frame.columnconfigure(1, weight=1)
-        frame.columnconfigure(2, weight=0)
+        frame.columnconfigure(2, weight=0, minsize=BTN_COL())
 
         ttk.Label(frame, text="Feature list loading", font=("Arial", 9, "bold")).grid(
-            row=0, column=0, columnspan=3, sticky="w", padx=5, pady=(10, 2)
+            row=0, column=0, columnspan=3, sticky="we", padx=5, pady=(10, 2)
         )
 
         r = 1
 
         self.id_col = tk.IntVar(value=1)
-        ttk.Label(frame, text="id_col:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="id_col:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(frame, textvariable=self.id_col)
-        ent.grid(row=r, column=1, sticky="w", padx=5, pady=5)
+        ent.grid(row=r, column=1, sticky="we", padx=5, pady=5)
         Tooltip(ent, "Column index starts from 0")
         r += 1
 
         self.rt_col = tk.IntVar(value=2)
-        ttk.Label(frame, text="rt_col:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
-        ttk.Entry(frame, textvariable=self.rt_col).grid(row=r, column=1, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="rt_col:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.rt_col).grid(row=r, column=1, sticky="we", padx=5, pady=5)
         r += 1
 
         self.mz_col = tk.IntVar(value=3)
-        ttk.Label(frame, text="mz_col:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
-        ttk.Entry(frame, textvariable=self.mz_col).grid(row=r, column=1, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="mz_col:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.mz_col).grid(row=r, column=1, sticky="we", padx=5, pady=5)
         r += 1
 
         self.intensity_col = tk.IntVar(value=4)
-        ttk.Label(frame, text="intensity_col:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
-        ttk.Entry(frame, textvariable=self.intensity_col).grid(row=r, column=1, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="intensity_col:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.intensity_col).grid(row=r, column=1, sticky="we", padx=5, pady=5)
         r += 1
 
         self.file_suffix = tk.StringVar(value=".csv")
-        ttk.Label(frame, text="file_suffix:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="file_suffix:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
         ent = ttk.Entry(frame, textvariable=self.file_suffix)
-        ent.grid(row=r, column=1, sticky="w", padx=5, pady=5)
+        ent.grid(row=r, column=1, sticky="we", padx=5, pady=5)
         Tooltip(ent, "File extension of the feature list")
         r += 1
 
         self.time_format = tk.StringVar(value="min")
-        ttk.Label(frame, text="time_format:").grid(row=r, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="time_format:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
         cb = ttk.Combobox(frame, textvariable=self.time_format, values=["min", "sec"], state="readonly")
-        cb.grid(row=r, column=1, sticky="w", padx=5, pady=5)
+        cb.grid(row=r, column=1, sticky="we", padx=5, pady=5)
         Tooltip(cb, "RT unit in the input file")
 
     def on_datatype_change(self, datatype_value: str):
@@ -622,7 +636,7 @@ class RTCorrectionApp(BaseRunnerTab):
     def get_current_config(self) -> dict:
         cfg = {
             "datatype": self.datatype.get(),
-            "calculate_summary_data": (self.calculate_summary_data.get() == "true"),
+            "redo": (self.redo.get() == "true"),
             "linearfit": (self.linearfit.get() == "true"),
 
             "linear_r": smart_number(self.linear_r.get()),
@@ -657,7 +671,7 @@ class RTCorrectionApp(BaseRunnerTab):
         return cfg
 
     def save_current_preset(self):
-        name = simpledialog.askstring("Save preset", "Preset name:")
+        name = simpledialog.askstring("Save preset", "Preset name:", parent=self.get_toplevel())
         if not name:
             return
         name = name.strip()
@@ -667,7 +681,8 @@ class RTCorrectionApp(BaseRunnerTab):
         user_presets = load_user_presets()
 
         if name in PRESET_CONFIGS:
-            ok = messagebox.askyesno("Overwrite?", f'Preset "{name}" already exists. Overwrite?')
+            ok = messagebox.askyesno("Overwrite?", f'Preset "{name}" already exists. Overwrite?',
+                                     parent=self.get_toplevel())
             if not ok:
                 return
 
@@ -684,15 +699,15 @@ class RTCorrectionApp(BaseRunnerTab):
             pass
 
         self.preset_var.set(name)
-        messagebox.showinfo("Saved", f'Preset "{name}" saved.')
+        messagebox.showinfo("Saved", f'Preset "{name}" saved.', parent=self.get_toplevel())
 
     def load_preset(self):
         cfg = PRESET_CONFIGS.get(self.preset_var.get(), {})
 
         if "datatype" in cfg:
             self.datatype.set(str(cfg["datatype"]))
-        if "calculate_summary_data" in cfg:
-            self.calculate_summary_data.set("true" if cfg["calculate_summary_data"] else "false")
+        if "redo" in cfg:
+            self.redo.set("true" if cfg["redo"] else "false")
         if "linearfit" in cfg:
             self.linearfit.set("true" if cfg["linearfit"] else "false")
 
@@ -750,64 +765,69 @@ class RTCorrectionApp(BaseRunnerTab):
         else:
             return
 
-        if not self.input_dir.get().strip() or not self.output_dir.get().strip():
-            messagebox.showerror("Error", "Please fill input_dir / output_dir.")
-            return
-
         cmd = []
 
         if use_python:
             cmd.append(python_exe())
 
-        cmd.extend([
-            exe,
-            f"--datatype={self.datatype.get()}",
-            f"--calculate_summary_data={self.calculate_summary_data.get()}",
-            f"--linearfit={self.linearfit.get()}",
-            f"--linear_r={self.linear_r.get().strip()}",
-            f"--min_peak={self.min_peak.get().strip()}",
-            f"--rt_max={self.rt_max.get().strip()}",
-            f"--input_dir={self.input_dir.get().strip()}",
-            f"--output_dir={self.output_dir.get().strip()}",
-            f"--dbscan_rt={self.dbscan_rt.get().strip()}",
-            f"--dbscan_rt2={self.dbscan_rt2.get().strip()}",
-            f"--dbscan_mz={self.dbscan_mz.get().strip()}",
-            f"--dbscan_mz_ppm={self.dbscan_mz_ppm.get().strip()}",
-            f"--min_sample={self.min_sample.get().strip()}",
-            f"--min_sample2={self.min_sample2.get().strip()}",
-            f"--min_feature_group={self.min_feature_group.get().strip()}",
-            f"--rt_bins={self.rt_bins.get().strip()}",
-            f"--max_rt_diff={self.max_rt_diff.get().strip()}",
-            f"--it={self.it.get().strip()}",
-            f"--loess_frac={self.loess_frac.get().strip()}",
-            f"--interpolate_f={self.interpolate_f.get().strip()}",
-        ])
-
+        args_map = {
+            "--datatype": self.datatype.get(),
+            "--redo": self.redo.get(),
+            "--linearfit": self.linearfit.get(),
+            "--linear_r": self.linear_r.get().strip(),
+            "--min_peak": self.min_peak.get().strip(),
+            "--rt_max": self.rt_max.get().strip(),
+            "--input_dir": self.input_dir.get().strip(),
+            "--output_dir": self.output_dir.get().strip(),
+            "--dbscan_rt": self.dbscan_rt.get().strip(),
+            "--dbscan_rt2": self.dbscan_rt2.get().strip(),
+            "--dbscan_mz": self.dbscan_mz.get().strip(),
+            "--dbscan_mz_ppm": self.dbscan_mz_ppm.get().strip(),
+            "--min_sample": self.min_sample.get().strip(),
+            "--min_sample2": self.min_sample2.get().strip(),
+            "--min_feature_group": self.min_feature_group.get().strip(),
+            "--rt_bins": self.rt_bins.get().strip(),
+            "--max_rt_diff": self.max_rt_diff.get().strip(),
+            "--it": self.it.get().strip(),
+            "--loess_frac": self.loess_frac.get().strip(),
+            "--interpolate_f": self.interpolate_f.get().strip(),
+        }
         if self.datatype.get() in ("tsv", "csv"):
-            cmd += [
-                f"--id_col={int(self.id_col.get())}",
-                f"--rt_col={int(self.rt_col.get())}",
-                f"--mz_col={int(self.mz_col.get())}",
-                f"--intensity_col={int(self.intensity_col.get())}",
-                f"--time_format={self.time_format.get()}",
-                f"--file_suffix={self.file_suffix.get()}"
-            ]
+            args_map.update({
+                "--id_col": int(self.id_col.get()),
+                "--rt_col": int(self.rt_col.get()),
+                "--mz_col": int(self.mz_col.get()),
+                "--intensity_col": int(self.intensity_col.get()),
+                "--time_format": self.time_format.get(),
+                "--file_suffix": self.file_suffix.get(),
+            })
+        missing = [k for k, v in args_map.items() if v in ("", None)]
 
-        self.run_command(cmd, ok_msg="Trainer finished.")
+        cmd.append(exe)
+        cmd.extend([f"{k}={v}" for k, v in args_map.items()])
+
+        if missing:
+            messagebox.showerror(
+                "Error",
+                "Please fill the following parameters:\n\n" + "\n".join(missing),parent=self.get_toplevel()
+            )
+            return
+
+        self.run_command(cmd, ok_msg="Model trainer finished.")
 
 
 class MzmlCorrectionApp(BaseRunnerTab):
     def __init__(self, master):
-        super().__init__(master, "Apply model to .mzml", scrollable_form=False)
+        super().__init__(master, "Apply model to .mzml", scrollable_form=True)
 
         self.mzml_dir = self.add_dir_field("mzml_dir:", default="E:/Halo_lipidomic_zhang/mzml")
         self.out_dir = self.add_dir_field("out_dir:", default="E:/Halo_lipidomic_zhang/corrected")
         self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
 
-        self.file_suffix = self.add_text_field("file_suffix:", default="")
+        self.model_suffix = self.add_text_field("model_suffix:", default="_modified.txt")
         self.add_hint('Suffix used to link model training files to raw data, e.g., "abc.csv" → "abc.mzML".')
 
-        self.n_workers = self.add_int_field("n_workers:", default=16)
+        self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
         self.add_hint("CPU number")
 
         self.add_run_button("Run", self.run)
@@ -827,33 +847,36 @@ class MzmlCorrectionApp(BaseRunnerTab):
         else:
             return
 
-        mzml_dir = self.mzml_dir.get().strip()
-        out_dir = self.out_dir.get().strip()
-        model_path = self.model_path.get().strip()
-        if not (mzml_dir and out_dir and model_path):
-            messagebox.showerror("Error", "Please fill mzml_dir / out_dir / model_path.")
-            return
-
         cmd = []
 
         if use_python:
             cmd.append(python_exe())
 
-        cmd.extend([
-            exe,
-            f"--mzml_dir={mzml_dir}",
-            f"--out_dir={out_dir}",
-            f"--model_path={model_path}",
-            f"--n_workers={int(self.n_workers.get())}",
-            f"--file_suffix={self.file_suffix.get().strip()}",
-        ])
+        args_map = {
+            "--mzml_dir": self.mzml_dir.get().strip(),
+            "--out_dir": self.out_dir.get().strip(),
+            "--model_path": self.model_path.get().strip(),
+            "--n_workers": int(self.n_workers.get()),
+            "--model_suffix": self.model_suffix.get().strip(),
+        }
+        missing = [k for k, v in args_map.items() if v in ("", None)]
+
+
+        cmd.append(exe)
+        cmd.extend([f"{k}={v}" for k, v in args_map.items()])
+
+        if missing:
+            messagebox.showerror(
+                "Error",
+                "Please fill the following parameters:\n\n" + "\n".join(missing),parent=self.get_toplevel()
+            )
+            return
 
         self.run_command(cmd, ok_msg="mzML correction finished.")
 
-
 class ApplyModelFeaturelistApp(BaseRunnerTab):
     def __init__(self, master):
-        super().__init__(master, "Apply model to feature lists", scrollable_form=False)
+        super().__init__(master, "Apply model to feature lists", scrollable_form=True)
 
         self.featurelist_dir = self.add_dir_field("featurelist_dir:", default="E:/Halo_lipidomic_zhang/featurelist")
         self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
@@ -862,15 +885,15 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
         self.rt_columns = self.add_text_field("rt_columns (comma):", default="RT (min)")
         self.add_hint("Use comma separate if there is multiple RT columns")
 
-        self.input_suffix = self.add_text_field("input_suffix:", default="")
+        self.input_suffix = self.add_text_field("input_suffix:", default=".txt")
         self.add_hint("Suffix of feature list files")
 
-        self.model_suffix = self.add_text_field("model_suffix:", default="")
+        self.model_suffix = self.add_text_field("model_suffix:", default=".txt")
         self.add_hint('Suffix used in model training files')
 
         self.rt_unit = self.add_choice_field("rt_unit:", values=["min", "sec"], default="min")
 
-        self.overwrite = self.add_bool_radiobuttons("overwrite_original:", default="true")
+        self.ow_rt = self.add_bool_radiobuttons("ow_rt:", default="true")
         self.add_hint("Overwrite original RT values when True; keep originals when False")
 
         self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
@@ -895,33 +918,190 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
         else:
             return
 
-        featurelist_dir = self.featurelist_dir.get().strip()
-        model_path = self.model_path.get().strip()
-        output_dir = self.output_dir.get().strip()
-        if not (featurelist_dir and model_path and output_dir):
-            messagebox.showerror("Error", "Please fill featurelist_dir / model_path / output_dir.")
-            return
-
         cmd = []
 
         if use_python:
             cmd.append(python_exe())
 
-        cmd.extend([
-            exe,
-            f"--featurelist_dir={featurelist_dir}",
-            f"--model_path={model_path}",
-            f"--output_dir={output_dir}",
-            f"--rt_columns={self.rt_columns.get().strip()}",
-            f"--overwrite_original={self.overwrite.get().strip()}",
-            f"--n_workers={int(self.n_workers.get())}",
-            f"--rt_unit={self.rt_unit.get().strip()}",
-            f"--round_digits={int(self.round_digits.get())}",
-            f"--input_suffix={self.input_suffix.get().strip()}",
-            f"--model_suffix={self.model_suffix.get().strip()}",
-        ])
+        args_map = {
+            "--featurelist_dir": self.featurelist_dir.get().strip(),
+            "--model_path": self.model_path.get().strip(),
+            "--output_dir": self.output_dir.get().strip(),
+            "--rt_columns": self.rt_columns.get().strip(),
+            "--ow_rt": self.ow_rt.get().strip(),
+            "--n_workers": int(self.n_workers.get()),
+            "--rt_unit": self.rt_unit.get().strip(),
+            "--round_digits": int(self.round_digits.get()),
+            "--input_suffix": self.input_suffix.get().strip(),
+            "--model_suffix": self.model_suffix.get().strip(),
+        }
+
+        missing = [k for k, v in args_map.items() if v in ("", None)]
+
+        cmd.append(exe)
+        cmd.extend([f"{k}={v}" for k, v in args_map.items()])
+
+        if missing:
+            messagebox.showerror(
+                "Error",
+                "Please fill the following parameters:\n\n" + "\n".join(missing),parent=self.get_toplevel()
+            )
+            return
 
         self.run_command(cmd, ok_msg="Featurelist correction finished.")
+
+class AreaBiasCorrectionApp(BaseRunnerTab):
+    def __init__(self, master):
+        super().__init__(master, "Area bias correction", scrollable_form=True)
+
+        self.add_group_title("Basic settings")
+        self.model_path = self.add_file_field(
+            "model_path (.pkl):",
+            [("Pickle model", "*.pkl"), ("All files", "*.*")],
+            default=""
+        )
+        self.input_path = self.add_text_field("input_path:", default="")
+        frm = ttk.Frame(self.form)
+        frm.grid(row=self._row-1, column=2, sticky="e", padx=5, pady=5)
+        ttk.Button(frm, text="Dir", width=5, command=lambda: self._pick_dir(self.input_path)).pack(side="left", padx=(0, 3))
+        ttk.Button(frm, text="File", width=5, command=lambda: self._pick_file(self.input_path, [("All files", "*.*")])).pack(side="left")
+
+        self.output_dir = self.add_dir_field("output_dir:", default="")
+        self.rt_max = self.add_text_field("rt_max:", default="45.0")
+        self.input_suffix = self.add_text_field("input_suffix:", default=".txt")
+        self.model_suffix = self.add_text_field("model_suffix:", default=".txt")
+        self.time_format = self.add_choice_field(
+            "time_format:",
+            values=["min", "sec"],
+            default="min"
+        )
+        self.add_group_title("Modes")
+        self.aligned_mode = self.add_bool_radiobuttons(
+            "aligned_mode:", default="true", on_change=lambda v: self.update_mode_ui()
+        )
+        self.add_hint("true: use aligned feature list as input (one file); false: use individual feature lists as input (multiple file)")
+
+        self.rt_center_only = self.add_bool_radiobuttons(
+            "rt_center_only:", default="true", on_change=lambda v: self.update_mode_ui()
+        )
+        self.add_hint("true: correct bias use rt center (suggested); false: correct bias use rt edges")
+
+        self.keep_ori = self.add_bool_radiobuttons(
+            "keep_ori:", default="true", on_change=lambda v: self.update_mode_ui()
+        )
+        self.add_hint("true: keep original RT and area info")
+
+        self.add_group_title("RT columns")
+        self.area_col = self.add_text_field("area_col:", default="Area")
+        self.add_hint("name of area column")
+
+        self.left_right_frame = ttk.Frame(self.form)
+        self.left_right_frame.grid(row=self._row, column=0, columnspan=3, sticky="we")
+        self.left_right_frame.columnconfigure(0, weight=0, minsize=LABEL_COL())
+        self.left_right_frame.columnconfigure(1, weight=1)
+        self.left_right_frame.columnconfigure(2, weight=0, minsize=BTN_COL())
+
+        self.rt_left_col = tk.StringVar(value="RT left(min)")
+        ttk.Label(self.left_right_frame, text="rt_left_col:").grid(row=0, column=0, sticky="we", padx=5, pady=5)
+        ent_left = ttk.Entry(self.left_right_frame, textvariable=self.rt_left_col)
+        ent_left.grid(row=0, column=1, sticky="we", padx=5, pady=5)
+        Tooltip(ent_left, "name of rt left column")
+        self._row += 1
+
+        self.rt_right_col = tk.StringVar(value="RT right (min)")
+        ttk.Label(self.left_right_frame, text="rt_right_col:").grid(row=1, column=0, sticky="we", padx=5, pady=5)
+        ent_right = ttk.Entry(self.left_right_frame, textvariable=self.rt_right_col)
+        ent_right.grid(row=1, column=1, sticky="we", padx=5, pady=5)
+        Tooltip(ent_right, "name of rt right column")
+
+        self._row += 1
+
+        # center-only group
+        self.center_frame = ttk.Frame(self.form)
+        self.center_frame.grid(row=self._row, column=0, columnspan=3, sticky="we")
+        self.center_frame.columnconfigure(0, weight=0, minsize=LABEL_COL())
+        self.center_frame.columnconfigure(1, weight=1)
+        self.center_frame.columnconfigure(2, weight=0, minsize=BTN_COL())
+
+        self.rt_center_col = tk.StringVar(value="Average Rt(min)")
+        ttk.Label(self.center_frame, text="rt_center_col:").grid(row=0, column=0, sticky="we", padx=5, pady=5)
+        ttk.Entry(self.center_frame, textvariable=self.rt_center_col).grid(row=0, column=1, sticky="we", padx=5, pady=5)
+
+        self._row += 1
+
+        self.add_group_title("Other")
+
+        self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
+        self.add_hint("CPU number")
+        self.add_run_button("Run", self.run)
+        self.update_mode_ui()
+
+    def update_mode_ui(self):
+        aligned = (self.aligned_mode.get() == "true")
+
+        # Rule: aligned_mode True -> force rt_center_only True
+        if aligned and self.rt_center_only.get() != "true":
+            self.rt_center_only.set("true")
+
+        center_only = (self.rt_center_only.get() == "true")
+
+        # Show/hide by frame, like tab1
+        if center_only:
+            self.left_right_frame.grid_remove()
+            self.center_frame.grid()
+        else:
+            self.center_frame.grid_remove()
+            self.left_right_frame.grid()
+
+    def run(self):
+        exe_py = exe_path("area_bias_correction.py")
+        exe_exe = exe_path("area_bias_correction.exe")
+
+        use_python = False
+        if os.path.exists(exe_py):
+            exe = exe_py
+            use_python = True
+        elif file_exists_or_warn(exe_exe, "Area_bias_correction executable missing"):
+            exe = exe_exe
+            use_python = False
+        else:
+            return
+
+        cmd = []
+        if use_python:
+            cmd.append(python_exe())
+
+        args_map = {
+            "--model_path": self.model_path.get().strip(),
+            "--input": self.input_path.get().strip(),
+            "--output_dir": self.output_dir.get().strip(),
+            "--rt_max": self.rt_max.get().strip(),
+            "--n_workers": int(self.n_workers.get()),
+            "--input_suffix": self.input_suffix.get().strip(),
+            "--model_suffix": self.model_suffix.get().strip(),
+            "--rt_left_col": self.rt_left_col.get().strip(),
+            "--rt_right_col": self.rt_right_col.get().strip(),
+            "--rt_center_col": self.rt_center_col.get().strip(),
+            "--area_col": self.area_col.get().strip(),
+            "--rt_center_only": self.rt_center_only.get().strip(),
+            "--aligned_mode": self.aligned_mode.get().strip(),
+            "--time_format": self.time_format.get().strip(),
+        }
+
+        missing = [k for k, v in args_map.items() if v in ("", None)]
+
+
+        cmd.append(exe)
+        cmd.extend([f"{k}={v}" for k, v in args_map.items()])
+
+        if missing:
+            messagebox.showerror(
+                "Error",
+                "Please fill the following parameters:\n\n" + "\n".join(missing),parent=self.get_toplevel()
+            )
+            return
+
+        self.run_command(cmd, ok_msg="Area bias correction finished.")
 
 def main():
     root = tk.Tk()
@@ -948,6 +1128,10 @@ def main():
     tab3 = ttk.Frame(notebook)
     notebook.add(tab3, text="Apply model to feature lists")
     ApplyModelFeaturelistApp(tab3)
+
+    tab4 = ttk.Frame(notebook)
+    notebook.add(tab4, text="Area bias correction")
+    AreaBiasCorrectionApp(tab4)
 
     root.mainloop()
 

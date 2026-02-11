@@ -58,7 +58,7 @@ def correct_rt_for_mzml(mzml_dir: str, out_dir: str, fname: str, suffixes):
             break
 
     if model is None:
-        print("No model found for {}".format(fname))
+        print("No model found for {} with model key: ".format(fname)+suffix)
         return
 
     text = open(input_path, 'r', encoding='utf-8').read()
@@ -106,15 +106,15 @@ def main():
     parser = argparse.ArgumentParser(
         description="Batch RT correction for mzML files using pre-trained models."
     )
-    parser.add_argument("--mzml_dir", #required=True,
-                        help="Input .mzML directory",default=r"E:\Halo_lipidomic_zhang\mzml")
-    parser.add_argument("--out_dir", #required=True,
-                        help="Output directory for corrected files",default=r"E:\Halo_lipidomic_zhang\corrected")
-    parser.add_argument("--model_path", #required=True,
-                        help="Path to rt_correction_models.pkl",default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
+    parser.add_argument("--mzml_dir", required=True,
+                        help="Input .mzML directory")
+    parser.add_argument("--out_dir", required=True,
+                        help="Output directory for corrected files")
+    parser.add_argument("--model_path", required=True,
+                        help="Path to rt_correction_models.pkl")
     parser.add_argument("--n_workers", type=int, default=16,
                         help="Number of CPU processors (default: cpu_count-1)")
-    parser.add_argument("--file_suffix", default="",
+    parser.add_argument("--model_suffix", default="",
                         help='Model file_suffix for matching .mzml file. '
                              'Example: input ".txt" means abc.txt correspond to abc.mzml. '
                              'If empty, use built-in defaults.')
@@ -135,14 +135,14 @@ def main():
         "_correct_modified.txt",
         ".mzML_chromatograms_resolved1_decon.csv"
     ]
-    user_suffixes = parse_suffixes_arg(args.file_suffix)
+    user_suffixes = parse_suffixes_arg(args.model_suffix)
     suffixes = user_suffixes if user_suffixes else default_suffixes
 
-    models = load_models(model_path)
     files = [f for f in os.listdir(mzml_dir) if f.lower().endswith('.mzml')]
     if not files:
         print(f"[Warning] No .mzML files in {mzml_dir}")
         return
+    models = load_models(model_path)
 
     pool = mp.Pool(
         processes=args.n_workers or mp.cpu_count()-1,
@@ -176,12 +176,6 @@ def entrypoint():
                 f'  -> {frame.line}'
             )
         print("======================================================")
-
-    finally:
-        try:
-            input("\nPress Enter to close...")
-        except Exception:
-            pass
 
 
 if __name__ == '__main__':

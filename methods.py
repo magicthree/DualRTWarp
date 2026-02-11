@@ -1,3 +1,4 @@
+import argparse
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="statsmodels")
 
@@ -989,3 +990,13 @@ def model_build(matrix_rt, all_samples,
     df_out.to_csv(output_csv, index=False)
     print(f"Correction result saved as: {output_csv}")
     return models
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    s = str(v).strip().lower()
+    if s in ("1", "true", "t", "yes", "y"):
+        return True
+    if s in ("0", "false", "f", "no", "n"):
+        return False
+    raise argparse.ArgumentTypeError("Boolean expected (true/false).")

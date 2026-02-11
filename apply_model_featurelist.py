@@ -7,6 +7,8 @@ import multiprocessing as mp
 from typing import List, Dict
 from functools import partial
 
+from methods import str2bool
+
 os.environ["PYTHONUNBUFFERED"] = "1"
 os.environ["PYTHONIOENCODING"] = "utf-8"
 os.environ["PYTHONUTF8"] = "1"
@@ -36,7 +38,7 @@ def process_single_file(
         model_dict: dict,
         output_dir: str,
         rt_columns: List[str],
-        overwrite_original: bool = True,
+        ow_rt: bool = True,
         rt_unit: str = "min",   # 'min' or 'sec'
         round_digits: int = 4,
         input_suffix: str = "",
@@ -126,7 +128,7 @@ def process_single_file(
                 return rt_val  # 静默处理错误
 
         for rt_col in existing_rt_cols:
-            if overwrite_original:
+            if ow_rt:
                 df[rt_col] = df[rt_col].apply(correct_rt_value)
             else:
                 corrected_col = rt_col + '_corrected'
@@ -144,7 +146,7 @@ def process_single_file(
         stats = {}
         for rt_col in existing_rt_cols:
             ori = original_rts[rt_col]
-            corr = df[rt_col] if overwrite_original else df[rt_col + "_corrected"]
+            corr = df[rt_col] if ow_rt else df[rt_col + "_corrected"]
 
             pair = pd.DataFrame({"ori": ori, "corr": corr}).dropna()
             if len(pair) > 0:
@@ -171,7 +173,7 @@ def correct_feature_lists(
         model_dict: dict,
         output_dir: str,
         rt_columns: List[str] = None,
-        overwrite_original: bool = True,
+        ow_rt: bool = True,
         n_workers: int = None,
         rt_unit: str = "min",
         round_digits: int = 4,
@@ -208,7 +210,7 @@ def correct_feature_lists(
         model_dict=model_dict,
         output_dir=output_dir,
         rt_columns=rt_columns,
-        overwrite_original=overwrite_original,
+        ow_rt=ow_rt,
         rt_unit=rt_unit,
         round_digits=round_digits,
         input_suffix=input_suffix,
@@ -245,7 +247,7 @@ def main():
     parser.add_argument("--model_path", required=True, help="Path to model pickle (.pkl)")
     parser.add_argument("--output_dir", required=True, help="Directory to save corrected featurelists")
     parser.add_argument("--rt_columns", default="rt", help="Comma-separated RT column names, e.g. 'rt,RT (min),retention_time'")
-    parser.add_argument("--overwrite_original", default="true", help="Overwrite original RT values when True; keep originals when False")
+    parser.add_argument("--ow_rt", type= str2bool, default="true", help="Overwrite original RT values when True; keep originals when False")
     parser.add_argument("--n_workers", type=int, default=None, help="Number of CPU processors (default: cpu_count-1)")
     parser.add_argument("--rt_unit", default="min", help="RT unit in input files: m/min/minute or s/sec/second (model expects minutes)")
     parser.add_argument("--round_digits", type=int, default=4, help="Round corrected RT to N digits (default: 4)")
@@ -265,7 +267,7 @@ def main():
     models = load_models(args.model_path)
     print(f"Loaded {len(models)} models from {args.model_path}")
 
-    overwrite = str(args.overwrite_original).strip().lower() in {"1", "true", "yes", "y", "t"}
+    ow_rt = str(args.ow_rt).strip().lower() in {"1", "true", "yes", "y", "t"}
 
     rt_cols = parse_list_arg(args.rt_columns)
 
@@ -274,7 +276,7 @@ def main():
         model_dict=models,
         output_dir=args.output_dir,
         rt_columns=rt_cols,
-        overwrite_original=overwrite,
+        ow_rt=ow_rt,
         n_workers=args.n_workers,
         rt_unit=args.rt_unit,
         round_digits=args.round_digits,
@@ -304,12 +306,6 @@ def entrypoint():
                 f'  -> {frame.line}'
             )
         print("======================================================")
-
-    finally:
-        try:
-            input("\nPress Enter to close...")
-        except Exception:
-            pass
 
 if __name__ == '__main__':
     mp.freeze_support()

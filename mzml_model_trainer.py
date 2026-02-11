@@ -12,7 +12,7 @@ from methods import (
     filter_aligned_matrix,
     apply_models_to_big_data,
     reorder_columns_by_variation,
-    interpolate_and_heatmap, model_build, plot_correction_curves
+    interpolate_and_heatmap, model_build, plot_correction_curves, str2bool
 )
 
 os.environ["PYTHONUNBUFFERED"] = "1"
@@ -52,7 +52,7 @@ def configsets():
     return {
     "default": {
         "datatype": "msdial",
-        "calculate_summary_data": False,
+        "redo": False,
         "linearfit": False,
         "linear_r": 0.6,
         "min_peak": 5000,
@@ -68,11 +68,11 @@ def configsets():
         "it": 3,
         "loess_frac": 0.1,
         "max_rt_diff": 0.5,
-        "interpolate_p": 0.6
+        "interpolate_f": 0.6
     },
     "Ha96": {
         "datatype": "msdial",
-        "calculate_summary_data": False,
+        "redo": False,
         "linearfit": True,
         "linear_r": 0.6,
         "min_peak": 5000,
@@ -88,7 +88,7 @@ def configsets():
         "it": 3,
         "loess_frac": 0.1,
         "max_rt_diff": 1.2,
-        "interpolate_p": 0.6,
+        "interpolate_f": 0.6,
         "input_dir": r"E:\Halo_lipidomic_zhang\featurelist",
         "output_dir": r"E:\Halo_lipidomic_zhang\GUItest"
     }
@@ -107,7 +107,7 @@ def parse_arguments():
                         help='Path of output files')
     parser.add_argument('--datatype', type=str, choices=['csv','tsv','msdial'],
                         help='Choose between "csv","tsv", and "msdial"')
-    parser.add_argument('--calculate_summary_data', type=str,
+    parser.add_argument('--redo', type=str2bool,
                         help='If True, feature list collection is re-run even if previous results exist; if False, existing results are used.')
     parser.add_argument('--min_peak', type=int,
                         help='Minimum features intensity/area to be involved')
@@ -137,7 +137,7 @@ def parse_arguments():
     parser.add_argument('--dbscan_mz_ppm', type=float,
                         help='DBSCAN m/z ppm threshold')
     # Filter
-    parser.add_argument('--linearfit', type=str, default=False,
+    parser.add_argument('--linearfit', type=str2bool, default=False,
                         help="This function enables linear regression of feature RT as a function of sample order"
                         "Features with linear coefficient r lower than given threshold will be filtered"
                         "Recommended for one batch dataset where shows continuous RT shift along the sequence")
@@ -183,14 +183,6 @@ def load_configuration(args):
         raise ValueError(f"Preset '{args.config}' not found. Available presets: {list(PRESET_CONFIGS.keys())}")
     config = config.copy()
 
-    for param in vars(args):
-        value = getattr(args, param)
-        if value is not None and param != 'config':
-            if param in ['calculate_summary_data', 'linearfit']:
-                config[param] = convert_bool(value)
-            else:
-                config[param] = value
-
     return config
 
 def main():
@@ -218,8 +210,7 @@ def main():
         for key, default_value in current_config_for_defaults.items():
             arg_value = getattr(args, key, None)
             if arg_value is not None:
-                new_config[key] = convert_bool(arg_value) if key in ['calculate_summary_data',
-                                                                     'linearfit'] else arg_value
+                new_config[key] = arg_value
             else:
                 new_config[key] = default_value
 
@@ -230,8 +221,36 @@ def main():
 
     config = load_configuration(args)
 
+    required_keys = [
+        "datatype",
+        "redo",
+        "linearfit",
+        "linear_r",
+        "min_peak",
+        "dbscan_rt",
+        "dbscan_rt2",
+        "dbscan_mz",
+        "dbscan_mz_ppm",
+        "rt_max",
+        "min_sample",
+        "min_sample2",
+        "min_feature_group",
+        "rt_bins",
+        "max_rt_diff",
+        "it",
+        "loess_frac",
+        "interpolate_f",
+        "input_dir",
+        "output_dir",
+    ]
+
+    missing = [k for k in required_keys if k not in config]
+
+    if missing:
+        raise KeyError(f"Config missing required parameter(s): {', '.join(missing)}")
+
     datatype = config["datatype"]
-    calculate_summary_data = config["calculate_summary_data"]
+    redo = config["redo"]
     linearfit = config["linearfit"]
     linear_r = config["linear_r"]
     min_peak = config["min_peak"]
@@ -295,7 +314,7 @@ def main():
 
     bk_list = [i for i in os.listdir(input_dir) if "_bk" in i.lower() or "blank" in i.lower()]
     qc_list = [i for i in os.listdir(input_dir) if "_qc" in i.lower()]
-    if calculate_summary_data or not os.path.exists(os.path.join(output_dir, "summary_data.csv")):
+    if redo or not os.path.exists(os.path.join(output_dir, "summary_data.csv")):
         print(f"Calculating summary feature lists")
         # Generate summary data from input files
         all_data_list = analyze_file(
@@ -433,12 +452,6 @@ def entrypoint():
                 f'  -> {frame.line}'
             )
         print("======================================================")
-
-    finally:
-        try:
-            input("\nPress Enter to close...")
-        except Exception:
-            pass
 
 if __name__ == '__main__':
     mp.freeze_support()
