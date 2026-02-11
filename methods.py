@@ -67,7 +67,7 @@ def remove_same_feature(filedata, rt_tol=0.2, mz_abs_tol=0.02, mz_ppm_tol=15):
     return filtered
 
 def process_single_feature_list(args):
-    file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep,time_format = args
+    file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep,rt_unit = args
 
     filename = os.path.basename(file)
     datafile = pd.read_csv(file, sep=sep)
@@ -75,7 +75,7 @@ def process_single_feature_list(args):
     filtered_datafile.columns = ['ID', 'rt', 'mz', 'intensity']
     filtered_datafile['mz'].values.astype(float)
     filtered_datafile = filtered_datafile[filtered_datafile['intensity'] > min_peak]
-    if time_format not in ['minute', 'minutes','min']:
+    if  str(rt_unit).strip().lower() not in ['minute', 'minutes','min']:
         filtered_datafile['rt'] = filtered_datafile['rt'].astype(float) / 60
     else:
         filtered_datafile['rt'] = filtered_datafile['rt'].astype(float)
@@ -90,10 +90,10 @@ def process_single_feature_list(args):
         label = "Sample"
     return [filtered_datafile, os.path.basename(file), label]
 
-def analyze_file(filelist, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak=10000, cpu=8, sep=",",time_format="minute"):
+def analyze_file(filelist, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak=10000, cpu=8, sep=",", rt_unit="minute"):
     from multiprocessing import Pool, cpu_count
 
-    args_list = [(file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep,time_format) for file in filelist]
+    args_list = [(file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep, rt_unit) for file in filelist]
     with Pool(processes=min(cpu_count(), cpu)) as pool:
         exp_file_ls = pool.map(process_single_feature_list, args_list)
     return exp_file_ls

@@ -243,16 +243,16 @@ def parse_list_arg(s: str) -> List[str]:
 
 def main():
     parser = argparse.ArgumentParser(description="Batch RT correction for featurelist files using pre-trained models (model in minutes).")
-    parser.add_argument("--featurelist_dir", required=True, help="Directory containing featurelist files (.txt/.csv)")
-    parser.add_argument("--model_path", required=True, help="Path to model pickle (.pkl)")
-    parser.add_argument("--output_dir", required=True, help="Directory to save corrected featurelists")
-    parser.add_argument("--rt_columns", default="rt", help="Comma-separated RT column names, e.g. 'rt,RT (min),retention_time'")
-    parser.add_argument("--ow_rt", type= str2bool, default="true", help="Overwrite original RT values when True; keep originals when False")
+    parser.add_argument("--featurelist_dir", required=True, help="Directory containing feature list files")
+    parser.add_argument("--model_path", required=True, help="Path to trained RT model (.pkl)")
+    parser.add_argument("--output_dir", required=True, help="Output directory")
+    parser.add_argument("--rt_columns", default="rt", help="RT column name(s); comma-separated if multiple")
+    parser.add_argument("--ow_rt", type= str2bool, default="true", help="Overwrite original RT values if true (default: true)")
     parser.add_argument("--n_workers", type=int, default=None, help="Number of CPU processors (default: cpu_count-1)")
-    parser.add_argument("--rt_unit", default="min", help="RT unit in input files: m/min/minute or s/sec/second (model expects minutes)")
-    parser.add_argument("--round_digits", type=int, default=4, help="Round corrected RT to N digits (default: 4)")
-    parser.add_argument("--input_suffix", default="", help="Suffix in featurelist filenames to replace, e.g. abc.csv")
-    parser.add_argument("--model_suffix", default="", help="Suffix used in model keys, e.g. aab.tsv")
+    parser.add_argument("--rt_unit", default="min", help='RT unit in input files "min" or "sec" (default: min)')
+    parser.add_argument("--round_digits", type=int, default=4, help="Number of decimal digits to keep in RT (default: 4)")
+    parser.add_argument("--input_suffix", default="", help="Suffix of feature list files")
+    parser.add_argument("--model_suffix", default="", help="Suffix used in model training files")
 
     args = parser.parse_args()
 

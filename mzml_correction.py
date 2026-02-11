@@ -107,17 +107,15 @@ def main():
         description="Batch RT correction for mzML files using pre-trained models."
     )
     parser.add_argument("--mzml_dir", required=True,
-                        help="Input .mzML directory")
+                        help="Directory containing mzML files")
     parser.add_argument("--out_dir", required=True,
-                        help="Output directory for corrected files")
+                        help="Output directory")
     parser.add_argument("--model_path", required=True,
-                        help="Path to rt_correction_models.pkl")
+                        help="Path to trained RT model (.pkl)")
+    parser.add_argument("--model_suffix", default="",
+                        help='Suffix used in model training files')
     parser.add_argument("--n_workers", type=int, default=16,
                         help="Number of CPU processors (default: cpu_count-1)")
-    parser.add_argument("--model_suffix", default="",
-                        help='Model file_suffix for matching .mzml file. '
-                             'Example: input ".txt" means abc.txt correspond to abc.mzml. '
-                             'If empty, use built-in defaults.')
 
     args = parser.parse_args()
 

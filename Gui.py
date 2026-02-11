@@ -158,6 +158,9 @@ PRESET_CONFIGS = config_sets()
 PRESET_CONFIGS.update(load_user_presets())
 
 class ScrollableFrame(ttk.Frame):
+    _active_canvas = None
+    _wheel_bound = False
+
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
@@ -174,7 +177,54 @@ class ScrollableFrame(ttk.Frame):
         self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-        self._bind_mousewheel(self.canvas)
+        # 进入/离开时设置当前激活的 canvas
+        self.canvas.bind("<Enter>", lambda e: self._set_active())
+        self.inner.bind("<Enter>", lambda e: self._set_active())
+        self.canvas.bind("<Leave>", lambda e: self._clear_active())
+        self.inner.bind("<Leave>", lambda e: self._clear_active())
+
+        self._bind_mousewheel_once()
+
+    def _set_active(self):
+        ScrollableFrame._active_canvas = self.canvas
+
+    def _clear_active(self):
+        if ScrollableFrame._active_canvas is self.canvas:
+            ScrollableFrame._active_canvas = None
+
+    def _bind_mousewheel_once(self):
+        if ScrollableFrame._wheel_bound:
+            return
+        ScrollableFrame._wheel_bound = True
+
+        root = self.winfo_toplevel()
+
+        def on_wheel(e):
+            c = ScrollableFrame._active_canvas
+            if c is None:
+                return
+
+            bbox = c.bbox("all")
+            if not bbox:
+                return
+            content_h = bbox[3] - bbox[1]
+            view_h = c.winfo_height()
+            if content_h <= view_h + 2:
+                return
+
+            c.yview_scroll(int(-1 * (e.delta / 120)), "units")
+
+        root.bind_all("<MouseWheel>", on_wheel, add="+")
+
+        root.bind_all("<Button-4>", lambda e: on_wheel(type("E", (), {"delta": 120})()), add="+")
+        root.bind_all("<Button-5>", lambda e: on_wheel(type("E", (), {"delta": -120})()), add="+")
+
+    def _on_inner_configure(self, event=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _on_canvas_configure(self, event):
+        self.canvas.itemconfigure(self._win, width=event.width)
+
 
     def _on_inner_configure(self, event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -185,7 +235,7 @@ class ScrollableFrame(ttk.Frame):
     def _bind_mousewheel(self, widget):
         def _on_mousewheel(e):
             self.canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
-        widget.bind_all("<MouseWheel>", _on_mousewheel)
+        widget.bind_all("<MouseWheel>", _on_mousewheel, add="+")
 
 class BaseRunnerTab:
     def __init__(self, master, title: str, scrollable_form: bool = False):
@@ -498,7 +548,9 @@ class RTCorrectionApp(BaseRunnerTab):
         self.add_group_title("Basic settings")
 
         self.input_dir = self.add_dir_field("input_dir:")
+        self.add_hint("Directory containing feature lists")
         self.output_dir = self.add_dir_field("output_dir:")
+        self.add_hint("Output directory")
 
         self.datatype = self.add_choice_field(
             "datatype:",
@@ -506,10 +558,10 @@ class RTCorrectionApp(BaseRunnerTab):
             default="tsv",
             on_change=self.on_datatype_change,
         )
+        self.add_hint('Format of your feature lists, "csv","tsv", or "msdial"')
 
         self.redo = self.add_bool_radiobuttons("redo:", default="false")
-        self.add_hint(
-            "If True, always re-run the feature list summarization; if False, existing results are used.")
+        self.add_hint("If True, always re-run the feature list collection")
 
         self.min_peak = self.add_text_field("min_peak:", default="5000")
         self.add_hint("Minimum features intensity/area to be involved")
@@ -547,30 +599,30 @@ class RTCorrectionApp(BaseRunnerTab):
         self.add_hint("r threshold for linear fit. From 0-1")
 
         self.max_rt_diff = self.add_text_field("max_rt_diff:", default="0.5")
-        self.add_hint("Maximum RT shifts expected (compared to medium value)")
+        self.add_hint("Maximum RT shifts (min) expected, compared to medium value")
 
         self.min_sample = self.add_text_field("min_sample:", default="10")
         self.add_hint("Minimum number of samples in which a feature should be present")
 
         self.min_sample2 = self.add_text_field("min_sample_2:", default="5")
-        self.add_hint("Minimum number of samples in which a feature should be present. (For edge RT regions with fewer features).")
+        self.add_hint("Minimum number of samples in which a feature should be present. For edge RT regions with fewer features")
 
         self.min_feature_group = self.add_text_field("min_feature_group:", default="5")
         self.add_hint("Minimum number of features required for a sample")
 
         self.rt_bins = self.add_text_field("rt_bins:", default="500")
-        self.add_hint("Number of rt bins used for grouping features.")
+        self.add_hint("Number of rt bins used for grouping features")
 
         self.add_group_title("Loess fit")
         self.it = self.add_text_field("it:", default="3")
-        self.add_hint("Number of iterations used for the LOESS fitting.")
+        self.add_hint("Number of lowess iterations")
 
         self.loess_frac = self.add_text_field("loess_frac:", default="0.1")
-        self.add_hint("Fraction of data points used for local LOESS fitting (0-1). Higher values produce smoother curve.")
+        self.add_hint("Lowess smoothing fraction, 0–1")
 
         self.add_group_title("Interpolate")
         self.interpolate_f = self.add_text_field("interpolate_f:", default="0.6")
-        self.add_hint("Controls interpolation strictness: higher values are more strict.")
+        self.add_hint("Interpolation strictness, 0–1")
 
         ttk.Button(self.runbar, text="Save preset", command=self.save_current_preset).grid(row=0, column=0, sticky="we")
         ttk.Button(self.runbar, text="Run", command=self.run).grid(row=0, column=1, sticky="e")
@@ -620,9 +672,9 @@ class RTCorrectionApp(BaseRunnerTab):
         Tooltip(ent, "File extension of the feature list")
         r += 1
 
-        self.time_format = tk.StringVar(value="min")
-        ttk.Label(frame, text="time_format:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
-        cb = ttk.Combobox(frame, textvariable=self.time_format, values=["min", "sec"], state="readonly")
+        self.rt_unit = tk.StringVar(value="min")
+        ttk.Label(frame, text="rt_unit:").grid(row=r, column=0, sticky="we", padx=5, pady=5)
+        cb = ttk.Combobox(frame, textvariable=self.rt_unit, values=["min", "sec"], state="readonly")
         cb.grid(row=r, column=1, sticky="we", padx=5, pady=5)
         Tooltip(cb, "RT unit in the input file")
 
@@ -666,7 +718,7 @@ class RTCorrectionApp(BaseRunnerTab):
             "mz_col": int(self.mz_col.get()),
             "intensity_col": int(self.intensity_col.get()),
             "file_suffix": self.file_suffix.get().strip(),
-            "time_format": self.time_format.get(),
+            "rt_unit": self.rt_unit.get(),
         }
         return cfg
 
@@ -727,6 +779,8 @@ class RTCorrectionApp(BaseRunnerTab):
             ("it", self.it),
             ("loess_frac", self.loess_frac),
             ("interpolate_f", self.interpolate_f),
+            ("file_suffix", self.file_suffix),
+            ("rt_unit", self.rt_unit),
         ]:
             if key in cfg:
                 var.set(str(cfg[key]))
@@ -743,10 +797,6 @@ class RTCorrectionApp(BaseRunnerTab):
             self.mz_col.set(int(cfg["mz_col"]))
         if "intensity_col" in cfg:
             self.intensity_col.set(int(cfg["intensity_col"]))
-        if "file_suffix" in cfg:
-            self.file_suffix.set(str(cfg["file_suffix"]))
-        if "time_format" in cfg:
-            self.time_format.set(str(cfg["time_format"]))
 
         self.on_datatype_change(self.datatype.get())
 
@@ -798,7 +848,7 @@ class RTCorrectionApp(BaseRunnerTab):
                 "--rt_col": int(self.rt_col.get()),
                 "--mz_col": int(self.mz_col.get()),
                 "--intensity_col": int(self.intensity_col.get()),
-                "--time_format": self.time_format.get(),
+                "--rt_unit": self.rt_unit.get(),
                 "--file_suffix": self.file_suffix.get(),
             })
         missing = [k for k, v in args_map.items() if v in ("", None)]
@@ -828,7 +878,7 @@ class MzmlCorrectionApp(BaseRunnerTab):
         self.add_hint('Suffix used to link model training files to raw data, e.g., "abc.csv" → "abc.mzML".')
 
         self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
-        self.add_hint("CPU number")
+        self.add_hint("Number of CPU processors")
 
         self.add_run_button("Run", self.run)
 
@@ -882,8 +932,8 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
         self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
         self.output_dir = self.add_dir_field("output_dir:", default="E:/Halo_lipidomic_zhang/corrected")
 
-        self.rt_columns = self.add_text_field("rt_columns (comma):", default="RT (min)")
-        self.add_hint("Use comma separate if there is multiple RT columns")
+        self.rt_columns = self.add_text_field("rt_columns:", default="RT (min)")
+        self.add_hint("RT column name(s); comma-separated if multiple")
 
         self.input_suffix = self.add_text_field("input_suffix:", default=".txt")
         self.add_hint("Suffix of feature list files")
@@ -894,10 +944,10 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
         self.rt_unit = self.add_choice_field("rt_unit:", values=["min", "sec"], default="min")
 
         self.ow_rt = self.add_bool_radiobuttons("ow_rt:", default="true")
-        self.add_hint("Overwrite original RT values when True; keep originals when False")
+        self.add_hint("Overwrite original RT values if true")
 
         self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
-        self.add_hint("CPU numbers")
+        self.add_hint("Number of CPU processors")
 
         self.round_digits = self.add_int_field("round_digits:", default=4)
 
@@ -965,35 +1015,33 @@ class AreaBiasCorrectionApp(BaseRunnerTab):
         frm.grid(row=self._row-1, column=2, sticky="e", padx=5, pady=5)
         ttk.Button(frm, text="Dir", width=5, command=lambda: self._pick_dir(self.input_path)).pack(side="left", padx=(0, 3))
         ttk.Button(frm, text="File", width=5, command=lambda: self._pick_file(self.input_path, [("All files", "*.*")])).pack(side="left")
+        self.add_hint("Folder (feature lists) or file path (aligned feature list)")
 
         self.output_dir = self.add_dir_field("output_dir:", default="")
-        self.rt_max = self.add_text_field("rt_max:", default="45.0")
+        self.rt_max = self.add_text_field("rt_max (min):", default="45.0")
         self.input_suffix = self.add_text_field("input_suffix:", default=".txt")
         self.model_suffix = self.add_text_field("model_suffix:", default=".txt")
-        self.time_format = self.add_choice_field(
-            "time_format:",
+        self.rt_unit = self.add_choice_field(
+            "rt_unit:",
             values=["min", "sec"],
             default="min"
         )
         self.add_group_title("Modes")
         self.aligned_mode = self.add_bool_radiobuttons(
-            "aligned_mode:", default="true", on_change=lambda v: self.update_mode_ui()
-        )
+            "aligned_mode:", default="true", on_change=lambda v: self.update_mode_ui())
         self.add_hint("true: use aligned feature list as input (one file); false: use individual feature lists as input (multiple file)")
 
         self.rt_center_only = self.add_bool_radiobuttons(
-            "rt_center_only:", default="true", on_change=lambda v: self.update_mode_ui()
-        )
+            "rt_center_only:", default="true", on_change=lambda v: self.update_mode_ui())
         self.add_hint("true: correct bias use rt center (suggested); false: correct bias use rt edges")
 
         self.keep_ori = self.add_bool_radiobuttons(
-            "keep_ori:", default="true", on_change=lambda v: self.update_mode_ui()
-        )
+            "keep_ori:", default="true", on_change=lambda v: self.update_mode_ui())
         self.add_hint("true: keep original RT and area info")
 
-        self.add_group_title("RT columns")
+        self.add_group_title("Columns")
         self.area_col = self.add_text_field("area_col:", default="Area")
-        self.add_hint("name of area column")
+        self.add_hint("Name of area column")
 
         self.left_right_frame = ttk.Frame(self.form)
         self.left_right_frame.grid(row=self._row, column=0, columnspan=3, sticky="we")
@@ -1005,14 +1053,14 @@ class AreaBiasCorrectionApp(BaseRunnerTab):
         ttk.Label(self.left_right_frame, text="rt_left_col:").grid(row=0, column=0, sticky="we", padx=5, pady=5)
         ent_left = ttk.Entry(self.left_right_frame, textvariable=self.rt_left_col)
         ent_left.grid(row=0, column=1, sticky="we", padx=5, pady=5)
-        Tooltip(ent_left, "name of rt left column")
+        Tooltip(ent_left, "Name of rt left column")
         self._row += 1
 
         self.rt_right_col = tk.StringVar(value="RT right (min)")
         ttk.Label(self.left_right_frame, text="rt_right_col:").grid(row=1, column=0, sticky="we", padx=5, pady=5)
         ent_right = ttk.Entry(self.left_right_frame, textvariable=self.rt_right_col)
         ent_right.grid(row=1, column=1, sticky="we", padx=5, pady=5)
-        Tooltip(ent_right, "name of rt right column")
+        Tooltip(ent_right, "Name of rt right column")
 
         self._row += 1
 
@@ -1032,7 +1080,7 @@ class AreaBiasCorrectionApp(BaseRunnerTab):
         self.add_group_title("Other")
 
         self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
-        self.add_hint("CPU number")
+        self.add_hint("Number of CPU processors")
         self.add_run_button("Run", self.run)
         self.update_mode_ui()
 
@@ -1085,7 +1133,7 @@ class AreaBiasCorrectionApp(BaseRunnerTab):
             "--area_col": self.area_col.get().strip(),
             "--rt_center_only": self.rt_center_only.get().strip(),
             "--aligned_mode": self.aligned_mode.get().strip(),
-            "--time_format": self.time_format.get().strip(),
+            "--rt_unit": self.rt_unit.get().strip(),
         }
 
         missing = [k for k, v in args_map.items() if v in ("", None)]

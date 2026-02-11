@@ -24,8 +24,8 @@ def load_models(model_path: str) -> dict:
     with open(model_path, 'rb') as f:
         return pickle.load(f)
 
-def is_minutes(time_format: str) -> bool:
-    s = str(time_format).strip().lower()
+def is_minutes(rt_unit: str) -> bool:
+    s = str(rt_unit).strip().lower()
     return s in {"m", "min", "minute", "minutes"}
 
 def create_inverse_model(model, x_range=(0.0, 45.0), num_points=500000):
@@ -51,15 +51,15 @@ def create_inverse_model(model, x_range=(0.0, 45.0), num_points=500000):
 
     return interp1d(y_unique, x_unique, bounds_error=False, fill_value="extrapolate")
 
-def apply_inverse_model(inverse_model, corrected_rt_values, time_format: str):
+def apply_inverse_model(inverse_model, corrected_rt_values, rt_unit: str):
     arr = np.asarray(corrected_rt_values, dtype=float)
-    if is_minutes(time_format):
+    if is_minutes(rt_unit):
         rt_minutes = arr
     else:
         rt_minutes = arr / 60.0
 
     original_minutes = inverse_model(rt_minutes)
-    return original_minutes if is_minutes(time_format) else original_minutes * 60.0
+    return original_minutes if is_minutes(rt_unit) else original_minutes * 60.0
 
 
 def reverse_area_from_center(
@@ -67,12 +67,12 @@ def reverse_area_from_center(
     rt_center_corr: float,
     area_corr: float,
     widths,
-    time_format: str,
+    rt_unit: str,
     rt_min: float,
     rt_max: float
 ):
     rc_in = float(rt_center_corr)
-    rc_min = rc_in if is_minutes(time_format) else rc_in / 60.0
+    rc_min = rc_in if is_minutes(rt_unit) else rc_in / 60.0
     rc_min = float(np.clip(rc_min, rt_min, rt_max))
 
     scales = []
@@ -151,7 +151,7 @@ def process_aligned_file(
     output_dir,
     rt_center_col,
     RTCenterWidths,
-    time_format,
+    rt_unit,
     rt_min,
     rt_max,
     inverse_points,
@@ -224,7 +224,7 @@ def process_aligned_file(
                 rc,
                 a,
                 RTCenterWidths,
-                time_format,
+                rt_unit,
                 rt_min=rt_min,
                 rt_max=rt_max
             )
@@ -239,7 +239,7 @@ def process_aligned_file(
 def process_corrected_file(
     file_path, model_bytes, sep, output_dir,
     rt_left_col, rt_right_col, area_col,
-    time_format,
+    rt_unit,
     rt_max=45.0,
     rt_min=0.0,
     RTCenterOnly=False,
@@ -287,7 +287,7 @@ def process_corrected_file(
         rt_center_corr = pd.to_numeric(df[rt_center_colname], errors='coerce').to_numpy(dtype=float)
         area_corr = pd.to_numeric(df[area_colname], errors='coerce').to_numpy(dtype=float)
 
-        rt_center_corr_min = rt_center_corr if is_minutes(time_format) else (rt_center_corr / 60.0)
+        rt_center_corr_min = rt_center_corr if is_minutes(rt_unit) else (rt_center_corr / 60.0)
         rt_center_corr_min_clamped = np.clip(rt_center_corr_min, rt_min, rt_max)
 
         rt_center_ori_min = apply_inverse_model(inv, rt_center_corr_min_clamped, "min")
@@ -307,7 +307,7 @@ def process_corrected_file(
                 rt_max=rt_max
             )
 
-        rt_center_ori = rt_center_ori_min if is_minutes(time_format) else (rt_center_ori_min * 60.0)
+        rt_center_ori = rt_center_ori_min if is_minutes(rt_unit) else (rt_center_ori_min * 60.0)
 
         if keep_original_values:
             df[f"{rt_center_colname}{rt_rev_suffix}"] = rt_center_ori
@@ -321,8 +321,8 @@ def process_corrected_file(
         right_corr = pd.to_numeric(df[rt_right_colname], errors='coerce').to_numpy(dtype=float)
         area_corr = pd.to_numeric(df[area_colname], errors='coerce').to_numpy(dtype=float)
 
-        left_corr_min = left_corr if is_minutes(time_format) else (left_corr / 60.0)
-        right_corr_min = right_corr if is_minutes(time_format) else (right_corr / 60.0)
+        left_corr_min = left_corr if is_minutes(rt_unit) else (left_corr / 60.0)
+        right_corr_min = right_corr if is_minutes(rt_unit) else (right_corr / 60.0)
 
         left_corr_min = np.clip(left_corr_min, rt_min, rt_max)
         right_corr_min = np.clip(right_corr_min, rt_min, rt_max)
@@ -336,8 +336,8 @@ def process_corrected_file(
         area_ori = area_corr * (right_ori_min - left_ori_min) / denom_safe
         area_ori = np.where(np.isnan(area_ori), area_corr, area_ori)
 
-        left_ori = left_ori_min if is_minutes(time_format) else (left_ori_min * 60.0)
-        right_ori = right_ori_min if is_minutes(time_format) else (right_ori_min * 60.0)
+        left_ori = left_ori_min if is_minutes(rt_unit) else (left_ori_min * 60.0)
+        right_ori = right_ori_min if is_minutes(rt_unit) else (right_ori_min * 60.0)
 
         if keep_original_values:
             df[f"{rt_left_colname}{rt_rev_suffix}"] = left_ori
@@ -357,7 +357,7 @@ def batch_reverse_feature_lists(
     folder_path, model_dict, sep, output_dir,
     input_suffixes, model_suffixes,
     rt_left_col, rt_right_col, area_col,
-    time_format, n_workers=4,
+    rt_unit, n_workers=4,
     rt_max=45.0,
     rt_min=0.0,
     inverse_points=500000,
@@ -397,7 +397,7 @@ def batch_reverse_feature_lists(
                 output_dir,
                 rt_center_col=aligned_rt_center_col,
                 RTCenterWidths=RTCenterWidths,
-                time_format=time_format,
+                rt_unit=rt_unit,
                 rt_min=rt_min,
                 rt_max=rt_max,
                 inverse_points=inverse_points,
@@ -442,7 +442,7 @@ def batch_reverse_feature_lists(
                 process_corrected_file,
                 file_path, model_bytes, sep, output_dir,
                 rt_left_col, rt_right_col, area_col,
-                time_format,
+                rt_unit,
                 rt_max=rt_max,
                 rt_min=rt_min,
                 inverse_points=inverse_points,
@@ -470,24 +470,26 @@ def main():
     parser.add_argument("--output_dir", type=str,
                         default=r"E:\Halo_lipidomic_zhang\Feature_list_compare\Correction\reversed")
 
-    parser.add_argument("--rt_max", type=float, default=45.0)
-    parser.add_argument("--n_workers", type=int, default=32)
+    parser.add_argument("--rt_max", type=float, default=45,help="Maximum retention time of the dataset (min) (default: 45)")
+    parser.add_argument("--n_workers", type=int, default=max(1, (os.cpu_count() or 2) - 1),help="Number of CPU processors (default: cpu_count-1)")
 
-    parser.add_argument("--input_suffix", type=str, default=".tsv")
-    parser.add_argument("--model_suffix", type=str, default=".txt")
+    parser.add_argument("--input_suffix", type=str, default=".txt",help="Suffix of feature list files")
+    parser.add_argument("--model_suffix", type=str, default=".txt",help="Suffix used in model training file")
 
     # columns
-    parser.add_argument("--rt_left_col", type=str, default="RT left(min)")
-    parser.add_argument("--rt_right_col", type=str, default="RT right (min)")
-    parser.add_argument("--rt_center_col", type=str, default="Average Rt(min)")
+    parser.add_argument("--rt_left_col", type=str, default="RT left(min)",help='Name of RT left boundary column (used when "rt_center_only=false")')
+    parser.add_argument("--rt_right_col", type=str, default="RT right (min)",help='Name of RT right boundary column (used when "rt_center_only=false")')
+    parser.add_argument("--rt_center_col", type=str, default="Average Rt(min)", help='Name of RT center column (used when "rt_center_only=true")')
     parser.add_argument("--area_col", type=str, default="Area")
 
     # modes
-    parser.add_argument("--rt_center_only", type=str2bool, default="false")
-    parser.add_argument("--aligned_mode", type=str2bool, default="true")
-    parser.add_argument("--time_format", type=str, default="min",
-                        help="m|min|minute|minutes => minutes; otherwise seconds")
-    parser.add_argument("--keep_ori", type=str2bool, default="false")
+    parser.add_argument("--rt_center_only", type=str2bool, default="true",
+                        help='"true": correct bias using RT center (recommended); "false": correct bias using RT left and right edge (default: true)')
+    parser.add_argument("--aligned_mode", type=str2bool, default="true",
+                        help='"true": input is one aligned feature list file; "false": inputs are individual feature lists (default: true)')
+    parser.add_argument("--rt_unit", type=str, default="min",
+                        help='RT unit in input files "min" or "sec" (default: min)')
+    parser.add_argument("--keep_ori", type=str2bool, default="false",help="Keep original RT and area info (default: false)")
 
 
     args = parser.parse_args()
@@ -507,7 +509,7 @@ def main():
         rt_left_col=args.rt_left_col,
         rt_right_col=args.rt_right_col,
         area_col=args.area_col,
-        time_format=args.time_format,
+        rt_unit=args.rt_unit,
         n_workers=args.n_workers,
         rt_min=0,
         rt_max=args.rt_max,

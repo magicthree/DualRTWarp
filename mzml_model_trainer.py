@@ -70,7 +70,7 @@ def configsets():
         "max_rt_diff": 0.5,
         "interpolate_f": 0.6
     },
-    "Ha96": {
+    "Halo96": {
         "datatype": "msdial",
         "redo": False,
         "linearfit": True,
@@ -102,17 +102,17 @@ def parse_arguments():
     parser.add_argument('--config', type=str, default='default',
                         help='Preset configuration name')
     parser.add_argument('--input_dir', type=str,
-                        help='Path of input feature lists')
+                        help='Directory containing feature lists')
     parser.add_argument('--output_dir', type=str,
-                        help='Path of output files')
+                        help='Output directory')
     parser.add_argument('--datatype', type=str, choices=['csv','tsv','msdial'],
                         help='Choose between "csv","tsv", and "msdial"')
     parser.add_argument('--redo', type=str2bool,
-                        help='If True, feature list collection is re-run even if previous results exist; if False, existing results are used.')
+                        help='If True, always re-run the feature list collection')
     parser.add_argument('--min_peak', type=int,
                         help='Minimum features intensity/area to be involved')
     parser.add_argument('--rt_max', type=float,
-                        help='Maximum retention time of the dataset')
+                        help='Maximum retention time (min) of the dataset')
     # csv/tsv parameters
     parser.add_argument('--id_col', type=int,
                         help='ID column number in feature lists (for .csv/.tsv mode)')
@@ -122,45 +122,45 @@ def parse_arguments():
                         help='RT column number in feature lists (for .csv/.tsv mode)')
     parser.add_argument('--intensity_col', type=int,
                         help='Intensity/area column number in feature lists (for .csv/.tsv mode)')
-    parser.add_argument('--time_format', type=str,
-                        help='min or sec')
+    parser.add_argument('--rt_unit', type=str,
+                        help='"min" or "sec" (default: min)')
     parser.add_argument('--file_suffix', type=str,
-                        help='.csv .txt etc')
+                        help='Suffix of feature list files')
 
     # DBSCAN
     parser.add_argument('--dbscan_rt', type=float,
-                        help='DBSCAN RT tolerance for 1st round correction (min)')
+                        help='DBSCAN RT tolerance for 1st round correction (min) (default: 0.4)')
     parser.add_argument('--dbscan_rt2', type=float,
-                        help='DBSCAN RT tolerance for 2nd round correction (min)')
+                        help='DBSCAN RT tolerance for 2nd round correction (min) (default: 0.2)')
     parser.add_argument('--dbscan_mz', type=float,
-                        help='DBSCAN absolute m/z threshold')
+                        help='DBSCAN absolute m/z threshold (default: 0.02)')
     parser.add_argument('--dbscan_mz_ppm', type=float,
-                        help='DBSCAN m/z ppm threshold')
+                        help='DBSCAN m/z ppm threshold (default: 15)')
     # Filter
     parser.add_argument('--linearfit', type=str2bool, default=False,
                         help="This function enables linear regression of feature RT as a function of sample order"
                         "Features with linear coefficient r lower than given threshold will be filtered"
-                        "Recommended for one batch dataset where shows continuous RT shift along the sequence")
+                        "Recommended for one batch dataset where shows continuous RT shift along the sequence (default: False)")
     parser.add_argument('--linear_r', type=float,
-                        help='r threshold for linear fit. (0-1)')
+                        help='threshold for linear fit. From 0-1 (default: 0.6)')
     parser.add_argument('--max_rt_diff', type=float,
-                        help='Maximum RT shifts expected, compared to medium value')
+                        help='Maximum RT shifts (min) expected, compared to medium value (default: 0.5)')
 
     parser.add_argument('--min_sample', type=int,
-                        help='Minimum number of samples in which a feature should be present')
+                        help='Minimum number of samples in which a feature should be present (default: 10)')
     parser.add_argument('--min_sample2', type=int,
-                        help='Minimum number of samples in which a feature should be present. (For edge RT regions with fewer features)')
+                        help='Minimum number of samples in which a feature should be present. For edge RT regions with fewer features (default: 5)')
     parser.add_argument('--min_feature_group', type=int,
-                        help='Minimum number of features required a sample')
+                        help='Minimum number of features required a sample (default: 5)')
     parser.add_argument('--rt_bins', type=int,
-                        help='Number of rt bins used for grouping features')
+                        help='Number of rt bins used for grouping features (default: 500)')
 
     parser.add_argument('--it', type=int,
-                        help='Number of iterations used for the LOESS fitting')
+                        help='Number of lowess iterations (default: 3)')
     parser.add_argument('--loess_frac', type=float,
-                        help='Fraction of data points used for local LOESS fitting (0-1). Higher values produce smoother curve')
+                        help='Lowess smoothing fraction, 0–1 (default: 0.1)')
     parser.add_argument('--interpolate_f', type=float,
-                        help='Controls interpolation strictness: higher values are more strict')
+                        help='Interpolation strictness, 0–1 (default: 0.6)')
     parser.add_argument('--create_preset', type=str, metavar='Str',
                         help='Create a new preset with the given name from other arguments and exit')
 
@@ -179,9 +179,11 @@ def convert_bool(value):
 
 def load_configuration(args):
     config = PRESET_CONFIGS.get(args.config).copy()
-    if not config:
-        raise ValueError(f"Preset '{args.config}' not found. Available presets: {list(PRESET_CONFIGS.keys())}")
-    config = config.copy()
+
+    for param in vars(args):
+        value = getattr(args, param)
+        if value is not None and param != 'config':
+                config[param] = value
 
     return config
 
@@ -218,9 +220,7 @@ def main():
         save_user_presets(user_presets)
         print(f"Preset '{preset_name}' saved successfully to {user_preset_path()}")
         return
-
     config = load_configuration(args)
-
     required_keys = [
         "datatype",
         "redo",
@@ -274,25 +274,17 @@ def main():
         rt_col = config["rt_col"]
         mz_col = config["mz_col"]
         intensity_col = config["intensity_col"]
-        time_format = config["time_format"]
+        rt_unit = config["rt_unit"]
         file_suffix = config["file_suffix"]
-        print(config["time_format"])
+        print(config["rt_unit"])
 
-    if datatype == "mzmine":
-        sep = ","
-        id_col = 0
-        rt_col = 1
-        mz_col = 4
-        intensity_col = 7
-        time_format = "minute"
-        file_suffix = ".csv"
-    elif datatype == "msdial":
+    if datatype == "msdial":
         sep = "\t"
         id_col = 0
         rt_col = 4
         mz_col = 6
         intensity_col = 7
-        time_format = "minute"
+        rt_unit = "minute"
         file_suffix = ".txt"
     elif datatype == "tsv":
         sep = "\t"
@@ -328,7 +320,7 @@ def main():
             min_peak=min_peak,
             cpu=18,
             sep=sep,
-            time_format=time_format
+            rt_unit=rt_unit
         )
         summary_data = pd.DataFrame()
         sp_list = []
@@ -347,40 +339,40 @@ def main():
     all_list = sp_list + bk_list + qc_list
 
     align_df = dbscan_alignment(summary_data, rt_tol=dbscan_rt, mz_abs_tol=dbscan_mz, mz_ppm_tol=dbscan_mz_ppm)
-    align_df.to_csv(os.path.join(output_dir, "1st_run_dbscan.csv"), index=False)
+    align_df.to_csv(os.path.join(output_dir, "dbscan_feature_group.csv"), index=False)
 
     aligned_matrix_filtered_single, new_all_sample_list = filter_aligned_matrix(
         align_df, sp_list, qc_list, bk_list, all_list,
         min_sample=min_sample, min_sample2=min_sample2, min_feature_pair=min_feature_group, rt_range_min=0, rt_range_max=rt_max,
-        rt_bins=rt_bins, output_dir=output_dir, prefix="1st_run_",max_rt_diff=max_rt_diff,
+        rt_bins=rt_bins, output_dir=output_dir, prefix="primary_",max_rt_diff=max_rt_diff,
         linearfit=linearfit,linear_r=linear_r
     )
 
     align_df_filter_RT = apply_extract_rt(aligned_matrix_filtered_single, new_all_sample_list)
     align_df_filter_RT_re_inter , new_all_sample_list = interpolate_and_heatmap(
         align_df_filter_RT, new_all_sample_list,
-        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "1st_run_interpolate.png"), linear_fit=linearfit,linear_r=linear_r,
+        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "primary_interpolate.png"), linear_fit=linearfit,linear_r=linear_r,
         min_feature_pair=min_feature_group,extract=False
     )
 
     models = model_build(
         align_df_filter_RT_re_inter, new_all_sample_list,
         ref_col="median_rt", feature_id_col="feature_id",
-        output_csv=os.path.join(output_dir, "1st_corrected_rts.csv"),
+        output_csv=os.path.join(output_dir, "primary_correction_table.csv"),
         rt_max=rt_max,frac=loess_frac,it=it
     )
 
 
     plot_correction_curves(
         align_df_filter_RT_re_inter, models, new_all_sample_list,
-        rt_max, 0, output_dir=os.path.join(output_dir, "rt_correction_plots"), suffix="_1st_run"
+        rt_max, 0, output_dir=os.path.join(output_dir, "rt_correction_plots"), suffix="_primary"
     )
 
     cor_summary_data = apply_models_to_big_data(summary_data, models, decimal_places=4)
-    cor_summary_data.to_csv(os.path.join(output_dir, "corr_summary_data.csv"), index=False)
+    cor_summary_data.to_csv(os.path.join(output_dir, "summary_data_primary_corr.csv"), index=False)
 
     cor_align_df = dbscan_alignment(cor_summary_data, rt_tol=dbscan_rt2, mz_abs_tol=dbscan_mz, mz_ppm_tol=dbscan_mz_ppm)
-    cor_align_df.to_csv(os.path.join(output_dir, "corr_run_dbscan.csv"), index=False)
+    cor_align_df.to_csv(os.path.join(output_dir, "dbscan_feature_group_primary_corr.csv"), index=False)
 
     sp_list = [x for x in sp_list if x in new_all_sample_list]
     qc_list = [x for x in qc_list if x in new_all_sample_list]
@@ -408,7 +400,7 @@ def main():
     models2 = model_build(
         cor_recover_filter_inter, new_all_sample_list,
         ref_col="median_rt", feature_id_col="feature_id",
-        output_csv=os.path.join(output_dir, "cor_filter_recover_inter_correct.csv"),
+        output_csv=os.path.join(output_dir, "final_correction_table.csv"),
         rt_max=rt_max,frac=loess_frac,it=it
     )
     plot_correction_curves(
@@ -423,7 +415,7 @@ def main():
     with open(os.path.join(output_dir, "rt_correction_models.pkl"), "wb") as f:
         pickle.dump(models2, f)
 
-    with open(os.path.join(output_dir, "1st_run_rt_correction_models.pkl"), "wb") as f2:
+    with open(os.path.join(output_dir, "primary_rt_correction_models.pkl"), "wb") as f2:
         pickle.dump(models, f2)
 
     print("Saved models to 'rt_correction_models.pkl'")
