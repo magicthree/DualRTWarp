@@ -81,7 +81,6 @@ def process_single_feature_list(args):
         filtered_datafile['rt'] = filtered_datafile['rt'].astype(float)
 
     if rm_iso:
-        print("diuniu")
         filtered_datafile = remove_isotopes(filtered_datafile,mz_tol=mz_abs_tol)
 
     filtered_datafile = remove_same_feature(filtered_datafile,mz_abs_tol=mz_abs_tol,mz_ppm_tol=mz_ppm_tol)
