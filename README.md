@@ -241,6 +241,7 @@ xdata_corr <- apply_RT_Corrector_XCMS(
 ```
 
 # Cite RT Corrector
+Waiting for submission......
 
 # References
 Smith, C. A., et al. (2006). "XCMS:  Processing Mass Spectrometry Data for Metabolite Profiling Using Nonlinear Peak Alignment, Matching, and Identification." Analytical Chemistry 78(3): 779–787.
