@@ -76,6 +76,7 @@ export_feature_lists(
 | --output_dir | str (path) | Output directory |
 | --datatype | str | Format of your feature lists, "csv","tsv", or "msdial" (default: tsv) |
 | --redo | bool | If True, always re-run the feature list collection (default: false) |
+| --rm_iso | bool | If True, filter isotopic feature in feature list (default: true) |
 | --min_peak | float | Minimum features intensity/area to be involved (default: 5000) |
 | --rt_max | float | Maximum retention time (min) of the dataset (default: 45) |
 
