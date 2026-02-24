@@ -67,7 +67,7 @@ def remove_same_feature(filedata, rt_tol=0.2, mz_abs_tol=0.02, mz_ppm_tol=15):
     return filtered
 
 def process_single_feature_list(args):
-    file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep,rt_unit = args
+    file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep,rt_unit,mz_abs_tol,mz_ppm_tol,rm_iso = args
 
     filename = os.path.basename(file)
     datafile = pd.read_csv(file, sep=sep)
@@ -80,8 +80,11 @@ def process_single_feature_list(args):
     else:
         filtered_datafile['rt'] = filtered_datafile['rt'].astype(float)
 
-    filtered_datafile=remove_isotopes(filtered_datafile)
-    filtered_datafile = remove_same_feature(filtered_datafile)
+    if rm_iso:
+        print("diuniu")
+        filtered_datafile = remove_isotopes(filtered_datafile,mz_tol=mz_abs_tol)
+
+    filtered_datafile = remove_same_feature(filtered_datafile,mz_abs_tol=mz_abs_tol,mz_ppm_tol=mz_ppm_tol)
     if filename in bk:
         label = "Blank"
     elif filename in qc:
@@ -90,10 +93,10 @@ def process_single_feature_list(args):
         label = "Sample"
     return [filtered_datafile, os.path.basename(file), label]
 
-def analyze_file(filelist, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak=10000, cpu=8, sep=",", rt_unit="minute"):
+def analyze_file(filelist, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak=10000, cpu=8, sep=",", rt_unit="min",mz_abs_tol=0.015,mz_ppm_tol=10,rm_iso=True):
     from multiprocessing import Pool, cpu_count
 
-    args_list = [(file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep, rt_unit) for file in filelist]
+    args_list = [(file, bk, qc, id_col, rt_col, mz_col, intensity_col, min_peak, sep, rt_unit,mz_abs_tol,mz_ppm_tol,rm_iso) for file in filelist]
     with Pool(processes=min(cpu_count(), cpu)) as pool:
         exp_file_ls = pool.map(process_single_feature_list, args_list)
     return exp_file_ls

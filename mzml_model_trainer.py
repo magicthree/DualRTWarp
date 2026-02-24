@@ -60,6 +60,7 @@ def configsets():
         "dbscan_rt2": 0.2,
         "dbscan_mz": 0.02,
         "dbscan_mz_ppm": 15,
+        "rm_iso": True,
         "rt_max": 45,
         "min_sample": 10,
         "min_sample2": 5,
@@ -69,28 +70,6 @@ def configsets():
         "loess_frac": 0.1,
         "max_rt_diff": 0.5,
         "interpolate_f": 0.6
-    },
-    "Halo96": {
-        "datatype": "msdial",
-        "redo": False,
-        "linearfit": True,
-        "linear_r": 0.6,
-        "min_peak": 5000,
-        "dbscan_rt": 0.4,
-        "dbscan_rt2": 0.2,
-        "dbscan_mz": 0.02,
-        "dbscan_mz_ppm": 15,
-        "rt_max": 45,
-        "min_sample": 10,
-        "min_sample2": 5,
-        "min_feature_group": 5,
-        "rt_bins": 500,
-        "it": 3,
-        "loess_frac": 0.1,
-        "max_rt_diff": 1.2,
-        "interpolate_f": 0.6,
-        "input_dir": r"E:\Halo_lipidomic_zhang\featurelist",
-        "output_dir": r"E:\Halo_lipidomic_zhang\GUItest"
     }
 }
 PRESET_CONFIGS = configsets()
@@ -113,6 +92,8 @@ def parse_arguments():
                         help='Minimum features intensity/area to be involved')
     parser.add_argument('--rt_max', type=float,
                         help='Maximum retention time (min) of the dataset')
+    parser.add_argument('--rm_iso', type=str2bool,
+                        help='If True, filter isotopic feature in feature list')
     # csv/tsv parameters
     parser.add_argument('--id_col', type=int,
                         help='ID column number in feature lists (for .csv/.tsv mode)')
@@ -231,6 +212,7 @@ def main():
         "dbscan_rt2",
         "dbscan_mz",
         "dbscan_mz_ppm",
+        "rm_iso",
         "rt_max",
         "min_sample",
         "min_sample2",
@@ -258,6 +240,7 @@ def main():
     dbscan_rt2 = config["dbscan_rt2"]
     dbscan_mz = config["dbscan_mz"]
     dbscan_mz_ppm = config["dbscan_mz_ppm"]
+    rm_iso = config["rm_iso"]
     rt_max = config["rt_max"]
     min_sample = config["min_sample"]
     min_sample2 = config["min_sample2"]
@@ -320,7 +303,10 @@ def main():
             min_peak=min_peak,
             cpu=18,
             sep=sep,
-            rt_unit=rt_unit
+            rt_unit=rt_unit,
+            mz_abs_tol=dbscan_mz,
+            mz_ppm_tol=dbscan_mz_ppm,
+            rm_iso = rm_iso
         )
         summary_data = pd.DataFrame()
         sp_list = []
@@ -351,7 +337,7 @@ def main():
     align_df_filter_RT = apply_extract_rt(aligned_matrix_filtered_single, new_all_sample_list)
     align_df_filter_RT_re_inter , new_all_sample_list = interpolate_and_heatmap(
         align_df_filter_RT, new_all_sample_list,
-        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "primary_interpolate.png"), linear_fit=linearfit,linear_r=linear_r,
+        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "primary_RT_shift_matrix.png"), linear_fit=linearfit,linear_r=linear_r,
         min_feature_pair=min_feature_group,extract=False
     )
 
@@ -392,7 +378,7 @@ def main():
     cor_recover_filter = apply_extract_rt(cor_recover_filter, new_all_sample_list)
     cor_recover_filter_inter, new_all_sample_list = interpolate_and_heatmap(
         cor_recover_filter, new_all_sample_list,
-        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "final_interpolate.png"),
+        interpolate_f=interpolate_f, save_path=os.path.join(output_dir, "final_RT_shift_matrix.png"),
         linear_fit=linearfit,linear_r=linear_r, min_feature_pair=min_feature_group,extract=False
     )
 

@@ -26,7 +26,6 @@ def file_exists_or_warn(path: str, title="Missing file"):
     return True
 
 def user_preset_path() -> str:
-    base = os.environ.get("APPDATA") or os.path.expanduser("~")
     d = os.path.dirname(sys.executable)
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, "user_presets.json")
@@ -114,6 +113,7 @@ def config_sets():
             "datatype": "msdial",
             "redo": False,
             "linearfit": False,
+            "rm_iso":True,
             "linear_r": 0.6,
             "min_peak": 5000,
             "dbscan_rt": 0.4,
@@ -129,28 +129,6 @@ def config_sets():
             "loess_frac": 0.1,
             "max_rt_diff": 0.5,
             "interpolate_f": 0.6,
-        },
-        "Halo96": {
-            "datatype": "msdial",
-            "redo": False,
-            "linearfit": True,
-            "linear_r": 0.6,
-            "min_peak": 5000,
-            "dbscan_rt": 0.4,
-            "dbscan_rt2": 0.2,
-            "dbscan_mz": 0.02,
-            "dbscan_mz_ppm": 15,
-            "rt_max": 45,
-            "min_sample": 10,
-            "min_sample2": 5,
-            "min_feature_group": 5,
-            "rt_bins": 500,
-            "it": 3,
-            "loess_frac": 0.1,
-            "max_rt_diff": 1.2,
-            "interpolate_f": 0.6,
-            "input_dir": r"E:\Halo_lipidomic_zhang\featurelist",
-            "output_dir": r"E:\Halo_lipidomic_zhang\GUItest",
         }
     }
 
@@ -177,7 +155,6 @@ class ScrollableFrame(ttk.Frame):
         self.inner.bind("<Configure>", self._on_inner_configure)
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
-        # 进入/离开时设置当前激活的 canvas
         self.canvas.bind("<Enter>", lambda e: self._set_active())
         self.inner.bind("<Enter>", lambda e: self._set_active())
         self.canvas.bind("<Leave>", lambda e: self._clear_active())
@@ -218,13 +195,6 @@ class ScrollableFrame(ttk.Frame):
 
         root.bind_all("<Button-4>", lambda e: on_wheel(type("E", (), {"delta": 120})()), add="+")
         root.bind_all("<Button-5>", lambda e: on_wheel(type("E", (), {"delta": -120})()), add="+")
-
-    def _on_inner_configure(self, event=None):
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-
-    def _on_canvas_configure(self, event):
-        self.canvas.itemconfigure(self._win, width=event.width)
-
 
     def _on_inner_configure(self, event=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
@@ -563,6 +533,9 @@ class RTCorrectionApp(BaseRunnerTab):
         self.redo = self.add_bool_radiobuttons("redo:", default="false")
         self.add_hint("If True, always re-run the feature list collection")
 
+        self.rm_iso = self.add_bool_radiobuttons("rm_iso:", default="true")
+        self.add_hint("If True, filter isotopic feature in feature list")
+
         self.min_peak = self.add_text_field("min_peak:", default="5000")
         self.add_hint("Minimum features intensity/area to be involved")
 
@@ -690,6 +663,7 @@ class RTCorrectionApp(BaseRunnerTab):
             "datatype": self.datatype.get(),
             "redo": (self.redo.get() == "true"),
             "linearfit": (self.linearfit.get() == "true"),
+            "rm_iso": (self.rm_iso.get() == "true"),
 
             "linear_r": smart_number(self.linear_r.get()),
             "min_peak": smart_number(self.min_peak.get()),
@@ -762,6 +736,8 @@ class RTCorrectionApp(BaseRunnerTab):
             self.redo.set("true" if cfg["redo"] else "false")
         if "linearfit" in cfg:
             self.linearfit.set("true" if cfg["linearfit"] else "false")
+        if "rm_iso" in cfg:
+            self.linearfit.set("true" if cfg["rm_iso"] else "rm_iso")
 
         for key, var in [
             ("linear_r", self.linear_r),
@@ -823,6 +799,7 @@ class RTCorrectionApp(BaseRunnerTab):
         args_map = {
             "--datatype": self.datatype.get(),
             "--redo": self.redo.get(),
+            "--rm_iso": self.rm_iso.get(),
             "--linearfit": self.linearfit.get(),
             "--linear_r": self.linear_r.get().strip(),
             "--min_peak": self.min_peak.get().strip(),
