@@ -20,7 +20,7 @@ Direct RT correction at the raw data level provides high flexibility and allows 
 
 DualRTWarp is distributed with a Windows **.exe** graphical user interface (GUI), the same functionality is also available in command-line mode.
 
-For XCMS users (in R), we additionally provide scripts to export feature lists and to directly apply trained RT correction models to **XCMSnExp** object.
+For XCMS users (in R), we additionally provide scripts to export feature lists and to directly apply trained DualRTWarp models to **XCMSnExp** object.
    
 ---
 
