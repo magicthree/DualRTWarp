@@ -505,7 +505,7 @@ class BaseRunnerTab:
 
 class RTCorrectionApp(BaseRunnerTab):
     def __init__(self, master):
-        super().__init__(master, "RT Corrector model training", scrollable_form=True)
+        super().__init__(master, "DualRTWarp model training", scrollable_form=True)
 
         ttk.Label(self.form, text="Preset config:").grid(row=self._row, column=0, sticky="we", padx=5, pady=5)
         presets = list(PRESET_CONFIGS.keys())
@@ -847,11 +847,11 @@ class MzmlCorrectionApp(BaseRunnerTab):
     def __init__(self, master):
         super().__init__(master, "Apply model to .mzml", scrollable_form=True)
 
-        self.mzml_dir = self.add_dir_field("mzml_dir:", default="E:/Halo_lipidomic_zhang/mzml")
-        self.out_dir = self.add_dir_field("out_dir:", default="E:/Halo_lipidomic_zhang/corrected")
-        self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
+        self.mzml_dir = self.add_dir_field("mzml_dir:", default="")
+        self.out_dir = self.add_dir_field("out_dir:", default="")
+        self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="")
 
-        self.model_suffix = self.add_text_field("model_suffix:", default="_modified.txt")
+        self.model_suffix = self.add_text_field("model_suffix:", default=".txt")
         self.add_hint('Suffix used to link model training files to raw data, e.g., "abc.csv" → "abc.mzML".')
 
         self.n_workers = self.add_int_field("n_workers:", default=max(1, (os.cpu_count() or 2) - 1))
@@ -905,9 +905,9 @@ class ApplyModelFeaturelistApp(BaseRunnerTab):
     def __init__(self, master):
         super().__init__(master, "Apply model to feature lists", scrollable_form=True)
 
-        self.featurelist_dir = self.add_dir_field("featurelist_dir:", default="E:/Halo_lipidomic_zhang/featurelist")
-        self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="E:/Halo_lipidomic_zhang/GUItest/rt_correction_models.pkl")
-        self.output_dir = self.add_dir_field("output_dir:", default="E:/Halo_lipidomic_zhang/corrected")
+        self.featurelist_dir = self.add_dir_field("featurelist_dir:", default="")
+        self.model_path = self.add_file_field("model_path (.pkl):", [("Pickle model", "*.pkl"), ("All files", "*.*")], default="")
+        self.output_dir = self.add_dir_field("output_dir:", default="")
 
         self.rt_columns = self.add_text_field("rt_columns:", default="RT (min)")
         self.add_hint("RT column name(s); comma-separated if multiple")
@@ -1130,7 +1130,7 @@ class AreaBiasCorrectionApp(BaseRunnerTab):
 
 def main():
     root = tk.Tk()
-    root.title("RT corrector")
+    root.title("DualRTWarp")
 
     icon_path = os.path.join(app_dir(), "logo.ico")
     if os.path.exists(icon_path):
@@ -1143,7 +1143,7 @@ def main():
     notebook.pack(fill="both", expand=True)
 
     tab1 = ttk.Frame(notebook)
-    notebook.add(tab1, text="RT Corrector model training")
+    notebook.add(tab1, text="DualRTWarp model training")
     RTCorrectionApp(tab1)
 
     tab2 = ttk.Frame(notebook)
