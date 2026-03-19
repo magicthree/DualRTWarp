@@ -226,12 +226,12 @@ Peak picking should be done before usage
 example:
 ```
 ...load XCMS/other packages...
-source("RT_Corrector_XCMS.R")
+source("DualRTWarp_XCMS.R")
 
 xdata <- readMSData(...)
 xdata <- findChromPeaks(...)
 
-xdata_corr <- apply_RT_Corrector_XCMS(
+xdata_corr <- apply_DualRTWarp_XCMS(
   xdata = xdata,
   model_pkl = "path to .pkl model",
   input_suffix = ".mzML",
