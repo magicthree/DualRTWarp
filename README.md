@@ -109,11 +109,11 @@ export_feature_lists(
 | --min_feature_group | int | Minimum features per sample (default: 5) |
 | --rt_bins | int | Number of rt bins used for grouping features (default: 500) |
 
-**LOESS fit setting**
+**LOWESS fit setting**
 | Parameter | Type | Description |
 |---------|------|-------------|
 | --it | int | Number of lowess iterations (default: 3) |
-| --loess_frac | float | Lowess smoothing fraction, 0–1 (default: 0.1) |
+| --lowess_frac | float | Lowess smoothing fraction, 0–1 (default: 0.1) |
 
 **Interpolation setting**
 | Parameter | Type | Description |
