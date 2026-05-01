@@ -126,7 +126,7 @@ def config_sets():
             "min_feature_group": 5,
             "rt_bins": 500,
             "it": 3,
-            "loess_frac": 0.1,
+            "lowess_frac": 0.1,
             "max_rt_diff": 0.5,
             "interpolate_f": 0.6,
         }
@@ -586,11 +586,11 @@ class RTCorrectionApp(BaseRunnerTab):
         self.rt_bins = self.add_text_field("rt_bins:", default="500")
         self.add_hint("Number of rt bins used for grouping features")
 
-        self.add_group_title("Loess fit")
+        self.add_group_title("Lowess fit")
         self.it = self.add_text_field("it:", default="3")
         self.add_hint("Number of lowess iterations")
 
-        self.loess_frac = self.add_text_field("loess_frac:", default="0.1")
+        self.lowess_frac = self.add_text_field("lowess_frac:", default="0.1")
         self.add_hint("Lowess smoothing fraction, 0–1")
 
         self.add_group_title("Interpolate")
@@ -681,7 +681,7 @@ class RTCorrectionApp(BaseRunnerTab):
             "max_rt_diff": smart_number(self.max_rt_diff.get()),
 
             "it": smart_number(self.it.get()),
-            "loess_frac": smart_number(self.loess_frac.get()),
+            "lowess_frac": smart_number(self.lowess_frac.get()),
             "interpolate_f": smart_number(self.interpolate_f.get()),
 
             "input_dir": self.input_dir.get().strip(),
@@ -753,7 +753,7 @@ class RTCorrectionApp(BaseRunnerTab):
             ("rt_bins", self.rt_bins),
             ("max_rt_diff", self.max_rt_diff),
             ("it", self.it),
-            ("loess_frac", self.loess_frac),
+            ("lowess_frac", self.lowess_frac),
             ("interpolate_f", self.interpolate_f),
             ("file_suffix", self.file_suffix),
             ("rt_unit", self.rt_unit),
@@ -816,7 +816,7 @@ class RTCorrectionApp(BaseRunnerTab):
             "--rt_bins": self.rt_bins.get().strip(),
             "--max_rt_diff": self.max_rt_diff.get().strip(),
             "--it": self.it.get().strip(),
-            "--loess_frac": self.loess_frac.get().strip(),
+            "--lowess_frac": self.lowess_frac.get().strip(),
             "--interpolate_f": self.interpolate_f.get().strip(),
         }
         if self.datatype.get() in ("tsv", "csv"):

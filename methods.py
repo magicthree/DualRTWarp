@@ -158,8 +158,9 @@ def remove_outlier_features(
             max_adjacent_diffs.append(0.0)
 
     #remove features with top 1% variance
-    variance_threshold = np.percentile(variances_for_percentile, 99) if variances_for_percentile else np.inf
-    adjacent_diff_threshold = np.percentile(diffs_for_percentile, 99.5) if diffs_for_percentile else np.inf
+    Thred_out=1
+    variance_threshold = np.percentile(variances_for_percentile, 100-Thred_out) if variances_for_percentile else np.inf
+    adjacent_diff_threshold = np.percentile(diffs_for_percentile, 100-(Thred_out/2)) if diffs_for_percentile else np.inf
     features_to_drop = set()
     removed_rows = 0
 
@@ -842,7 +843,7 @@ def interpolate_and_heatmap(ori_matrix, all_sample_cols, interpolate_f, save_pat
     return interpolated_df, all_sample_cols
 
 
-def loess_slope_iterative_adjust(
+def lowess_slope_iterative_adjust(
     x, y,
     frac=0.3,
     it=3,
@@ -856,7 +857,7 @@ def loess_slope_iterative_adjust(
     order = np.argsort(x)
     xs, ys = x[order], y[order]
 
-    # LOESS fit
+    # LOWESS fit
     lo = lowess(ys, xs, frac=frac, it=it, return_sorted=True)
     x_lo, y_lo = lo[:, 0], lo[:, 1]
 
@@ -926,7 +927,7 @@ def model_build(matrix_rt, all_samples,
                 ref_col="median_rt",
                 mz_col="median_mz",
                 feature_id_col="feature_id",
-                output_csv="corrected_loess.csv",
+                output_csv="corrected_lowess.csv",
                 rt_max=None,
                 frac=0.1,
                 it=3,
@@ -951,10 +952,10 @@ def model_build(matrix_rt, all_samples,
         y = np.round(tmp[ref_col].astype(float).values, 3)
 
 
-        f_lo = loess_slope_iterative_adjust(x, y,
-                                    frac=frac, it=it,
-                                    min_slope=min_slope,
-                                    max_slope=max_slope,x_left=0, y_left=0, x_right=rt_max, y_right=rt_max)
+        f_lo = lowess_slope_iterative_adjust(x, y,
+                                             frac=frac, it=it,
+                                             min_slope=min_slope,
+                                             max_slope=max_slope, x_left=0, y_left=0, x_right=rt_max, y_right=rt_max)
 
         models[samp] = f_lo
 

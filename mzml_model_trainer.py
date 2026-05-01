@@ -67,7 +67,7 @@ def configsets():
         "min_feature_group": 5,
         "rt_bins": 500,
         "it": 3,
-        "loess_frac": 0.1,
+        "lowess_frac": 0.1,
         "max_rt_diff": 0.5,
         "interpolate_f": 0.6
     }
@@ -138,7 +138,7 @@ def parse_arguments():
 
     parser.add_argument('--it', type=int,
                         help='Number of lowess iterations (default: 3)')
-    parser.add_argument('--loess_frac', type=float,
+    parser.add_argument('--lowess_frac', type=float,
                         help='Lowess smoothing fraction, 0–1 (default: 0.1)')
     parser.add_argument('--interpolate_f', type=float,
                         help='Interpolation strictness, 0–1 (default: 0.6)')
@@ -220,7 +220,7 @@ def main():
         "rt_bins",
         "max_rt_diff",
         "it",
-        "loess_frac",
+        "lowess_frac",
         "interpolate_f",
         "input_dir",
         "output_dir",
@@ -248,7 +248,7 @@ def main():
     rt_bins = config["rt_bins"]
     max_rt_diff = config["max_rt_diff"]
     it = config["it"]
-    loess_frac = config["loess_frac"]
+    lowess_frac = config["lowess_frac"]
     interpolate_f = config["interpolate_f"]
     input_dir = config["input_dir"]
     output_dir = config["output_dir"]
@@ -345,7 +345,7 @@ def main():
         align_df_filter_RT_re_inter, new_all_sample_list,
         ref_col="median_rt", feature_id_col="feature_id",
         output_csv=os.path.join(output_dir, "primary_correction_table.csv"),
-        rt_max=rt_max,frac=loess_frac,it=it
+        rt_max=rt_max,frac=lowess_frac,it=it
     )
 
 
@@ -387,7 +387,7 @@ def main():
         cor_recover_filter_inter, new_all_sample_list,
         ref_col="median_rt", feature_id_col="feature_id",
         output_csv=os.path.join(output_dir, "final_correction_table.csv"),
-        rt_max=rt_max,frac=loess_frac,it=it
+        rt_max=rt_max,frac=lowess_frac,it=it
     )
     plot_correction_curves(
         cor_recover_filter_inter, models2, new_all_sample_list,
